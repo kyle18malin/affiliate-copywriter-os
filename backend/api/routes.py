@@ -7,13 +7,17 @@ from pydantic import BaseModel
 from typing import Optional
 from backend.database import get_db
 from backend.services import rss_service, ad_service, ai_service, niche_service
-from backend.services import transcription_service
+from backend.services import transcription_service, chat_service
 from backend.models import GeneratedHook
 
 router = APIRouter()
 
 # Max file size: 25MB (Whisper API limit)
 MAX_FILE_SIZE = 25 * 1024 * 1024
+
+# In-memory conversation storage (per session)
+# In production, you'd want to persist this to database
+conversations = {}
 
 
 # ============== Pydantic Models ==============
@@ -93,6 +97,24 @@ class ArticleResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class ChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+    niche_id: Optional[int] = None
+
+
+class ScriptRequest(BaseModel):
+    script_type: str  # vsl, ugc, native, hooks, email
+    niche_id: int
+    topic: str
+    additional_instructions: Optional[str] = None
 
 
 # ============== Niche Routes ==============
@@ -428,4 +450,141 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         "ads": ads_count.scalar(),
         "patterns": patterns_count.scalar(),
         "hooks_generated": hooks_count.scalar()
+    }
+
+
+# ============== Chat/Assistant Routes ==============
+
+@router.post("/chat")
+async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Send a message to the AI assistant and get a response.
+    Maintains conversation history for context.
+    """
+    import uuid
+    
+    # Get or create conversation
+    conv_id = request.conversation_id or str(uuid.uuid4())
+    
+    if conv_id not in conversations:
+        conversations[conv_id] = []
+    
+    # Build context from database
+    context = {}
+    
+    if request.niche_id:
+        niche = await niche_service.get_niche_by_id(db, request.niche_id)
+        if niche:
+            context["niche"] = niche.name
+    
+    # Get pattern summary for context
+    pattern_summary = await ad_service.get_pattern_summary(db, request.niche_id)
+    if pattern_summary:
+        context["patterns"] = pattern_summary
+    
+    # Get recent news headlines
+    articles = await rss_service.get_recent_articles(db, limit=5)
+    if articles:
+        context["recent_news"] = [a.title for a in articles]
+    
+    # Add user message to history
+    conversations[conv_id].append({
+        "role": "user",
+        "content": request.message
+    })
+    
+    # Get AI response
+    try:
+        response = await chat_service.chat_completion(
+            messages=conversations[conv_id],
+            context=context
+        )
+        
+        # Add assistant response to history
+        conversations[conv_id].append({
+            "role": "assistant",
+            "content": response
+        })
+        
+        return {
+            "conversation_id": conv_id,
+            "response": response,
+            "message_count": len(conversations[conv_id])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/chat/script")
+async def generate_script(request: ScriptRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Generate a full script (VSL, UGC, native ad, etc.)
+    """
+    # Get niche
+    niche = await niche_service.get_niche_by_id(db, request.niche_id)
+    if not niche:
+        raise HTTPException(status_code=404, detail="Niche not found")
+    
+    # Build context
+    context = {"niche": niche.name}
+    
+    pattern_summary = await ad_service.get_pattern_summary(db, request.niche_id)
+    if pattern_summary:
+        context["patterns"] = pattern_summary
+    
+    articles = await rss_service.get_recent_articles(db, limit=5)
+    if articles:
+        context["recent_news"] = [a.title for a in articles]
+    
+    try:
+        script = await chat_service.generate_script(
+            script_type=request.script_type,
+            niche=niche.name,
+            topic=request.topic,
+            context=context,
+            additional_instructions=request.additional_instructions
+        )
+        
+        return {
+            "script": script,
+            "script_type": request.script_type,
+            "niche": niche.name,
+            "topic": request.topic
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/chat/conversations/{conversation_id}")
+async def get_conversation(conversation_id: str):
+    """Get conversation history"""
+    if conversation_id not in conversations:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    return {
+        "conversation_id": conversation_id,
+        "messages": conversations[conversation_id]
+    }
+
+
+@router.delete("/chat/conversations/{conversation_id}")
+async def clear_conversation(conversation_id: str):
+    """Clear/reset a conversation"""
+    if conversation_id in conversations:
+        del conversations[conversation_id]
+    
+    return {"message": "Conversation cleared"}
+
+
+@router.get("/chat/script-types")
+async def get_script_types():
+    """Get available script types"""
+    return {
+        "script_types": [
+            {"id": "vsl", "name": "Video Sales Letter (VSL)", "description": "Long-form persuasive video script"},
+            {"id": "ugc", "name": "UGC Script", "description": "User-generated content style, 30-60 seconds"},
+            {"id": "native", "name": "Native Ad", "description": "Editorial style, feels like content"},
+            {"id": "hooks", "name": "Hook Pack", "description": "10 scroll-stopping hooks"},
+            {"id": "email", "name": "Email Sequence", "description": "3-email promotional sequence"},
+        ]
     }

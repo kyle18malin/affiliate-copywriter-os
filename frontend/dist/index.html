@@ -97,7 +97,13 @@
             feeds: [],
             hooks: [],
             loading: true,
-            generating: false
+            generating: false,
+            // Chat state
+            chatMessages: [],
+            chatConversationId: null,
+            chatLoading: false,
+            chatNicheId: null,
+            scriptTypes: []
         };
 
         // API Helper
@@ -189,6 +195,7 @@
         function renderNav() {
             const tabs = [
                 { id: 'dashboard', label: 'Dashboard', icon: 'trending-up' },
+                { id: 'assistant', label: 'Assistant', icon: 'message-square' },
                 { id: 'generate', label: 'Generate', icon: 'sparkles' },
                 { id: 'news', label: 'News', icon: 'newspaper' },
                 { id: 'ads', label: 'Ads', icon: 'file-text' },
@@ -528,6 +535,100 @@
             `;
         }
 
+        function renderAssistant() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-display font-bold">AI Assistant</h2>
+                            <p class="text-slate-500 text-sm">Chat with your copywriting AI. Generate scripts, get feedback, iterate.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <select id="chat-niche" onchange="setChatNiche(this.value)" class="px-4 py-2 rounded-lg bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none text-sm">
+                                <option value="">All niches</option>
+                                ${state.niches.map(n => `<option value="${n.id}" ${state.chatNicheId == n.id ? 'selected' : ''}>${n.name}</option>`).join('')}
+                            </select>
+                            <button onclick="clearChat()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-700 transition-colors text-sm">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Script Generators -->
+                    <div class="glass rounded-xl p-4">
+                        <p class="text-xs text-slate-500 mb-3">Quick Generate:</p>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="quickScript('vsl')" class="px-3 py-1.5 rounded-lg bg-electric/20 text-electric hover:bg-electric/30 transition-colors text-sm">📹 VSL Script</button>
+                            <button onclick="quickScript('ugc')" class="px-3 py-1.5 rounded-lg bg-neon-rose/20 text-neon-rose hover:bg-neon-rose/30 transition-colors text-sm">🎬 UGC Script</button>
+                            <button onclick="quickScript('native')" class="px-3 py-1.5 rounded-lg bg-neon-amber/20 text-neon-amber hover:bg-neon-amber/30 transition-colors text-sm">📰 Native Ad</button>
+                            <button onclick="quickScript('hooks')" class="px-3 py-1.5 rounded-lg bg-neon-green/20 text-neon-green hover:bg-neon-green/30 transition-colors text-sm">🪝 Hook Pack</button>
+                            <button onclick="quickScript('email')" class="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors text-sm">📧 Email Sequence</button>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <div id="chat-container" class="glass rounded-xl overflow-hidden" style="height: calc(100vh - 380px); min-height: 400px;">
+                        <div id="chat-messages" class="p-4 space-y-4 overflow-y-auto" style="height: calc(100% - 80px);">
+                            ${state.chatMessages.length === 0 ? `
+                                <div class="text-center py-12">
+                                    <i data-lucide="message-square" class="w-16 h-16 text-slate-700 mx-auto mb-4"></i>
+                                    <h3 class="text-lg font-semibold text-slate-400 mb-2">Start a conversation</h3>
+                                    <p class="text-sm text-slate-600 max-w-md mx-auto">Ask me to write scripts, generate hooks, refine copy, or brainstorm ideas. I have context from your winning ads and latest news.</p>
+                                    <div class="mt-6 space-y-2 text-sm text-slate-500">
+                                        <p class="cursor-pointer hover:text-electric" onclick="setPrompt('Write a 60-second UGC script for auto insurance targeting young drivers')">💡 "Write a 60-second UGC script for auto insurance targeting young drivers"</p>
+                                        <p class="cursor-pointer hover:text-electric" onclick="setPrompt('Give me 5 hooks that create urgency around refinancing')">💡 "Give me 5 hooks that create urgency around refinancing"</p>
+                                        <p class="cursor-pointer hover:text-electric" onclick="setPrompt('Help me improve this hook: [paste your hook]')">💡 "Help me improve this hook: [paste your hook]"</p>
+                                    </div>
+                                </div>
+                            ` : state.chatMessages.map((msg, i) => `
+                                <div class="flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}">
+                                    ${msg.role === 'assistant' ? '<div class="w-8 h-8 rounded-lg bg-electric/20 flex items-center justify-center flex-shrink-0"><i data-lucide="bot" class="w-5 h-5 text-electric"></i></div>' : ''}
+                                    <div class="max-w-[80%] ${msg.role === 'user' ? 'bg-electric text-white' : 'bg-slate-800 text-slate-200'} rounded-xl px-4 py-3">
+                                        <div class="prose prose-sm prose-invert whitespace-pre-wrap">${msg.content}</div>
+                                    </div>
+                                    ${msg.role === 'user' ? '<div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0"><i data-lucide="user" class="w-5 h-5 text-slate-400"></i></div>' : ''}
+                                </div>
+                            `).join('')}
+                            ${state.chatLoading ? `
+                                <div class="flex gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-electric/20 flex items-center justify-center flex-shrink-0">
+                                        <i data-lucide="bot" class="w-5 h-5 text-electric"></i>
+                                    </div>
+                                    <div class="bg-slate-800 rounded-xl px-4 py-3">
+                                        <div class="flex items-center gap-2 text-slate-400">
+                                            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                                            <span>Writing...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <!-- Input Area -->
+                        <div class="p-4 border-t border-slate-800 bg-obsidian">
+                            <div class="flex gap-3">
+                                <textarea 
+                                    id="chat-input" 
+                                    placeholder="Ask me to write scripts, generate hooks, give feedback..." 
+                                    class="flex-1 px-4 py-3 rounded-xl bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none resize-none"
+                                    rows="1"
+                                    onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); }"
+                                    oninput="this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 150) + 'px';"
+                                ></textarea>
+                                <button 
+                                    onclick="sendChatMessage()" 
+                                    ${state.chatLoading ? 'disabled' : ''} 
+                                    class="px-4 py-3 rounded-xl bg-electric text-white hover:bg-electric-light transition-colors disabled:opacity-50"
+                                >
+                                    <i data-lucide="send" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         function render() {
             renderNav();
             renderNichesSidebar();
@@ -538,6 +639,7 @@
             } else {
                 switch(state.tab) {
                     case 'dashboard': content = renderDashboard(); break;
+                    case 'assistant': content = renderAssistant(); break;
                     case 'generate': content = renderGenerate(); break;
                     case 'news': content = renderNews(); break;
                     case 'ads': content = renderAds(); break;
@@ -674,6 +776,144 @@
         function copyHook(text) {
             navigator.clipboard.writeText(text);
             alert('Copied to clipboard!');
+        }
+
+        // ============== Chat/Assistant Functions ==============
+        
+        function setChatNiche(nicheId) {
+            state.chatNicheId = nicheId || null;
+        }
+
+        function setPrompt(text) {
+            document.getElementById('chat-input').value = text;
+            document.getElementById('chat-input').focus();
+        }
+
+        function clearChat() {
+            if (state.chatMessages.length > 0 && !confirm('Clear conversation history?')) return;
+            state.chatMessages = [];
+            state.chatConversationId = null;
+            render();
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message || state.chatLoading) return;
+
+            // Add user message to state
+            state.chatMessages.push({ role: 'user', content: message });
+            state.chatLoading = true;
+            input.value = '';
+            input.style.height = 'auto';
+            render();
+
+            // Scroll to bottom
+            setTimeout(() => {
+                const container = document.getElementById('chat-messages');
+                if (container) container.scrollTop = container.scrollHeight;
+            }, 50);
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        conversation_id: state.chatConversationId,
+                        niche_id: state.chatNicheId ? parseInt(state.chatNicheId) : null
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Chat failed');
+                }
+
+                const data = await res.json();
+                state.chatConversationId = data.conversation_id;
+                state.chatMessages.push({ role: 'assistant', content: data.response });
+            } catch (err) {
+                console.error(err);
+                state.chatMessages.push({ 
+                    role: 'assistant', 
+                    content: `❌ Error: ${err.message}. Please check your API key is configured.`
+                });
+            } finally {
+                state.chatLoading = false;
+                render();
+                
+                // Scroll to bottom again
+                setTimeout(() => {
+                    const container = document.getElementById('chat-messages');
+                    if (container) container.scrollTop = container.scrollHeight;
+                }, 50);
+            }
+        }
+
+        async function quickScript(scriptType) {
+            const nicheId = state.chatNicheId || (state.niches[0] ? state.niches[0].id : null);
+            
+            if (!nicheId) {
+                alert('Please select a niche first');
+                return;
+            }
+
+            const topic = prompt(`What's the topic/angle for this ${scriptType.toUpperCase()} script?`, '');
+            if (!topic) return;
+
+            // Add user message
+            const scriptNames = {
+                vsl: 'Video Sales Letter',
+                ugc: 'UGC Script',
+                native: 'Native Ad',
+                hooks: 'Hook Pack',
+                email: 'Email Sequence'
+            };
+            
+            state.chatMessages.push({ 
+                role: 'user', 
+                content: `Generate a ${scriptNames[scriptType]} about: ${topic}` 
+            });
+            state.chatLoading = true;
+            render();
+
+            try {
+                const res = await fetch('/api/chat/script', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        script_type: scriptType,
+                        niche_id: parseInt(nicheId),
+                        topic: topic
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Script generation failed');
+                }
+
+                const data = await res.json();
+                state.chatMessages.push({ 
+                    role: 'assistant', 
+                    content: `📝 **${scriptNames[scriptType]} for ${data.niche}**\n\n${data.script}`
+                });
+            } catch (err) {
+                console.error(err);
+                state.chatMessages.push({ 
+                    role: 'assistant', 
+                    content: `❌ Error: ${err.message}`
+                });
+            } finally {
+                state.chatLoading = false;
+                render();
+                
+                setTimeout(() => {
+                    const container = document.getElementById('chat-messages');
+                    if (container) container.scrollTop = container.scrollHeight;
+                }, 50);
+            }
         }
 
         // Initialize
