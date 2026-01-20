@@ -7,12 +7,25 @@ import os
 from pathlib import Path
 
 
-# Ensure data directory exists for persistent storage
-DATA_DIR = Path(os.environ.get("DATA_DIR", "./data"))
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-# Default database path in data directory
-DEFAULT_DB_PATH = f"sqlite+aiosqlite:///{DATA_DIR}/affiliate_copywriter.db"
+def get_database_url():
+    """
+    Get database URL, supporting both PostgreSQL (Railway) and SQLite (local).
+    Railway provides DATABASE_URL automatically when you add PostgreSQL.
+    """
+    db_url = os.environ.get("DATABASE_URL", "")
+    
+    # Railway PostgreSQL - convert postgres:// to postgresql+asyncpg://
+    if db_url.startswith("postgres://"):
+        return db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif db_url.startswith("postgresql://"):
+        return db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif db_url:
+        return db_url
+    
+    # Local SQLite fallback
+    data_dir = Path("./data")
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return f"sqlite+aiosqlite:///{data_dir}/affiliate_copywriter.db"
 
 
 class Settings(BaseSettings):
@@ -21,8 +34,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     ai_provider: Literal["openai", "anthropic"] = "anthropic"
     
-    # Database - uses DATA_DIR for persistence
-    database_url: str = DEFAULT_DB_PATH
+    # Database - auto-detects PostgreSQL (Railway) or SQLite (local)
+    database_url: str = ""
     
     # Server
     host: str = "0.0.0.0"
@@ -34,6 +47,12 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Set database URL if not provided
+        if not self.database_url:
+            self.database_url = get_database_url()
 
 
 settings = Settings()
