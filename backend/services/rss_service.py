@@ -14,26 +14,62 @@ from backend.models import RSSFeed, NewsArticle
 
 # Pre-configured RSS feeds for insurance/finance niches
 DEFAULT_FEEDS = [
-    # General News
+    # ===== MAINSTREAM / GENERAL NEWS =====
     {"name": "Google News - Top Stories", "url": "https://news.google.com/rss", "category": "General"},
     {"name": "Reuters - Top News", "url": "https://feeds.reuters.com/reuters/topNews", "category": "General"},
+    {"name": "AP News - Top Stories", "url": "https://rsshub.app/apnews/topics/apf-topnews", "category": "General"},
+    {"name": "USA Today - Top Stories", "url": "https://www.usatoday.com/rss/", "category": "General"},
+    {"name": "NPR - News", "url": "https://feeds.npr.org/1001/rss.xml", "category": "General"},
     
-    # Finance & Economy
+    # ===== POLITICAL NEWS (Both Sides) =====
+    # Conservative / Right-leaning
+    {"name": "Fox News - Politics", "url": "https://moxie.foxnews.com/google-publisher/politics.xml", "category": "Politics"},
+    {"name": "Fox News - US", "url": "https://moxie.foxnews.com/google-publisher/us.xml", "category": "Politics"},
+    {"name": "Fox Business", "url": "https://moxie.foxbusiness.com/google-publisher/markets.xml", "category": "Politics"},
+    {"name": "New York Post", "url": "https://nypost.com/feed/", "category": "Politics"},
+    {"name": "Daily Wire", "url": "https://www.dailywire.com/feeds/rss.xml", "category": "Politics"},
+    {"name": "Breitbart", "url": "https://feeds.feedburner.com/breitbart", "category": "Politics"},
+    
+    # Liberal / Left-leaning  
+    {"name": "CNN - Politics", "url": "http://rss.cnn.com/rss/cnn_allpolitics.rss", "category": "Politics"},
+    {"name": "CNN - US", "url": "http://rss.cnn.com/rss/cnn_us.rss", "category": "Politics"},
+    {"name": "MSNBC - Top Stories", "url": "https://www.msnbc.com/feeds/latest", "category": "Politics"},
+    {"name": "New York Times - Politics", "url": "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml", "category": "Politics"},
+    {"name": "Washington Post - Politics", "url": "https://feeds.washingtonpost.com/rss/politics", "category": "Politics"},
+    {"name": "The Hill", "url": "https://thehill.com/feed/", "category": "Politics"},
+    {"name": "Politico", "url": "https://www.politico.com/rss/politicopicks.xml", "category": "Politics"},
+    
+    # ===== FINANCE & ECONOMY =====
     {"name": "CNBC - Top News", "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html", "category": "Finance"},
+    {"name": "CNBC - Economy", "url": "https://www.cnbc.com/id/20910258/device/rss/rss.html", "category": "Finance"},
     {"name": "MarketWatch - Top Stories", "url": "https://feeds.marketwatch.com/marketwatch/topstories/", "category": "Finance"},
     {"name": "Bloomberg - Markets", "url": "https://feeds.bloomberg.com/markets/news.rss", "category": "Finance"},
+    {"name": "Wall Street Journal", "url": "https://feeds.a.dj.com/rss/RSSMarketsMain.xml", "category": "Finance"},
+    {"name": "Yahoo Finance", "url": "https://finance.yahoo.com/news/rssindex", "category": "Finance"},
     
-    # Insurance Specific
+    # ===== INSURANCE SPECIFIC =====
     {"name": "Insurance Journal", "url": "https://www.insurancejournal.com/feed/", "category": "Insurance"},
     {"name": "PropertyCasualty360", "url": "https://www.propertycasualty360.com/feed/", "category": "Insurance"},
+    {"name": "Insurance News Net", "url": "https://insurancenewsnet.com/feed", "category": "Insurance"},
     
-    # Real Estate / Mortgage (for Refi)
+    # ===== REAL ESTATE / MORTGAGE (for Refi) =====
     {"name": "HousingWire", "url": "https://www.housingwire.com/feed/", "category": "Real Estate"},
     {"name": "Mortgage News Daily", "url": "https://www.mortgagenewsdaily.com/rss/", "category": "Mortgage"},
+    {"name": "Realtor.com News", "url": "https://www.realtor.com/news/feed/", "category": "Real Estate"},
+    {"name": "Zillow Research", "url": "https://www.zillow.com/research/feed/", "category": "Real Estate"},
     
-    # Consumer Finance
+    # ===== CONSUMER FINANCE =====
     {"name": "NerdWallet", "url": "https://www.nerdwallet.com/blog/feed/", "category": "Personal Finance"},
     {"name": "The Penny Hoarder", "url": "https://www.thepennyhoarder.com/feed/", "category": "Personal Finance"},
+    {"name": "Bankrate", "url": "https://www.bankrate.com/feed/", "category": "Personal Finance"},
+    
+    # ===== WEATHER & DISASTERS (Insurance angles) =====
+    {"name": "Weather.com - Severe", "url": "https://weather.com/feeds/rss/severe", "category": "Weather"},
+    {"name": "AccuWeather - Top Stories", "url": "https://rss.accuweather.com/rss/liveweather_rss.asp?locCode=NAK", "category": "Weather"},
+    
+    # ===== TRENDING / VIRAL =====
+    {"name": "BuzzFeed", "url": "https://www.buzzfeed.com/index.xml", "category": "Trending"},
+    {"name": "Reddit - Popular", "url": "https://www.reddit.com/r/popular/.rss", "category": "Trending"},
 ]
 
 

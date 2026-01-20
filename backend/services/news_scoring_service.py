@@ -45,7 +45,16 @@ HOOK_INDICATORS = [
     # Insurance/Finance specific
     "rates", "premium", "coverage", "claim", "policy", "quote",
     "mortgage", "refinance", "interest rate", "fed", "inflation",
-    "homeowner", "driver", "accident", "storm", "disaster"
+    "homeowner", "driver", "accident", "storm", "disaster",
+    
+    # Political/Government (high engagement)
+    "trump", "biden", "congress", "senate", "white house", "government",
+    "shutdown", "bill", "law", "passed", "signed", "executive order",
+    "tax", "taxes", "irs", "stimulus", "relief", "benefit",
+    "election", "vote", "voters", "republican", "democrat",
+    "president", "administration", "federal", "supreme court",
+    "border", "immigration", "tariff", "trade war",
+    "scandal", "investigation", "indicted", "charged"
 ]
 
 # Categories for grouping
@@ -58,6 +67,9 @@ CATEGORIES = {
     "weather_disaster": ["storm", "hurricane", "flood", "fire", "disaster", "weather", "climate"],
     "trending_viral": ["viral", "trending", "popular", "everyone", "millions"],
     "consumer_tips": ["tips", "hack", "trick", "secret", "how to", "guide", "mistakes"],
+    "politics_government": ["trump", "biden", "congress", "senate", "government", "shutdown", "bill", 
+                           "white house", "president", "election", "republican", "democrat", "federal",
+                           "tax", "stimulus", "tariff", "border", "immigration", "law", "passed"],
 }
 
 
@@ -193,6 +205,7 @@ def group_articles_by_category(articles: list[dict]) -> dict:
     """
     groups = {
         "🔥 High Potential": [],
+        "🏛️ Politics & Government": [],
         "💰 Money & Savings": [],
         "📈 Rates & Economy": [],
         "🛡️ Insurance News": [],
@@ -211,7 +224,8 @@ def group_articles_by_category(articles: list[dict]) -> dict:
         "auto_driving": "🚗 Auto & Driving",
         "weather_disaster": "⛈️ Weather & Disasters",
         "consumer_tips": "💡 Tips & Hacks",
-        "trending_viral": "🔥 High Potential"
+        "trending_viral": "🔥 High Potential",
+        "politics_government": "🏛️ Politics & Government"
     }
     
     for article in articles:
