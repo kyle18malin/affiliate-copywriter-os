@@ -206,6 +206,111 @@ async def analyze_article(article_id: int, db: AsyncSession = Depends(get_db)):
     return analysis
 
 
+@router.get("/news/scored")
+async def get_scored_news(
+    limit: int = 100,
+    min_score: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get news articles scored and sorted by copywriting potential.
+    Uses quick keyword-based scoring for speed.
+    """
+    from backend.services import news_scoring_service
+    
+    articles = await rss_service.get_recent_articles(db, limit)
+    
+    # Convert to dicts for scoring
+    article_dicts = [
+        {
+            "id": a.id,
+            "title": a.title,
+            "summary": a.summary,
+            "url": a.url,
+            "feed_name": a.feed.name if a.feed else None,
+            "trending_angles": a.trending_angles,
+            "published_at": a.published_at.isoformat() if a.published_at else None
+        }
+        for a in articles
+    ]
+    
+    # Score articles
+    scored = await news_scoring_service.batch_score_articles(article_dicts, use_ai=False)
+    
+    # Filter by minimum score
+    if min_score > 0:
+        scored = [a for a in scored if a.get("relevance_score", 0) >= min_score]
+    
+    return scored
+
+
+@router.get("/news/grouped")
+async def get_grouped_news(
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get news articles grouped by category for easy browsing.
+    """
+    from backend.services import news_scoring_service
+    
+    articles = await rss_service.get_recent_articles(db, limit)
+    
+    # Convert to dicts for scoring
+    article_dicts = [
+        {
+            "id": a.id,
+            "title": a.title,
+            "summary": a.summary,
+            "url": a.url,
+            "feed_name": a.feed.name if a.feed else None,
+            "trending_angles": a.trending_angles,
+            "published_at": a.published_at.isoformat() if a.published_at else None
+        }
+        for a in articles
+    ]
+    
+    # Score and group
+    scored = await news_scoring_service.batch_score_articles(article_dicts, use_ai=False)
+    grouped = news_scoring_service.group_articles_by_category(scored)
+    
+    return {
+        "groups": grouped,
+        "total_count": len(article_dicts),
+        "categories": list(grouped.keys())
+    }
+
+
+@router.post("/news/ai-score")
+async def ai_score_news(
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Score news articles using AI for deeper analysis.
+    Limited to 20 articles due to API costs.
+    """
+    from backend.services import news_scoring_service
+    
+    articles = await rss_service.get_recent_articles(db, limit)
+    
+    article_dicts = [
+        {
+            "id": a.id,
+            "title": a.title,
+            "summary": a.summary,
+            "url": a.url,
+            "feed_name": a.feed.name if a.feed else None,
+        }
+        for a in articles
+    ]
+    
+    # Use AI scoring
+    scored = await news_scoring_service.batch_score_articles(article_dicts, use_ai=True)
+    
+    return scored
+
+
 # ============== Ad Routes ==============
 
 @router.get("/ads")

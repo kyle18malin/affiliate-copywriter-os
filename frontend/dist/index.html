@@ -108,7 +108,14 @@
             selectedAdRefs: [],  // Array of {id, title}
             selectedArticleRefs: [],  // Array of {id, title}
             showRefPicker: false,
-            refPickerType: null  // 'ads' or 'articles'
+            refPickerType: null,  // 'ads' or 'articles'
+            // News view state
+            newsView: 'grouped',  // 'grouped', 'flat', or 'top'
+            newsGroups: {},
+            newsCategories: [],
+            newsMinScore: 30,
+            newsLoading: false,
+            expandedGroups: {}  // Track which groups are expanded
         };
 
         // API Helper
@@ -124,14 +131,29 @@
         // Load all data
         async function loadData() {
             try {
-                const [stats, niches, articles, ads, feeds] = await Promise.all([
+                const [stats, niches, articles, ads, feeds, groupedNews] = await Promise.all([
                     api('/stats'),
                     api('/niches'),
-                    api('/news?limit=30'),
+                    api('/news/scored?limit=100'),
                     api('/ads'),
-                    api('/feeds')
+                    api('/feeds'),
+                    api('/news/grouped?limit=100')
                 ]);
-                state = { ...state, stats, niches, articles, ads, feeds, loading: false };
+                state = { 
+                    ...state, 
+                    stats, 
+                    niches, 
+                    articles, 
+                    ads, 
+                    feeds, 
+                    newsGroups: groupedNews.groups || {},
+                    newsCategories: groupedNews.categories || [],
+                    loading: false 
+                };
+                // Initialize expanded groups (expand high potential by default)
+                if (Object.keys(state.expandedGroups).length === 0) {
+                    state.expandedGroups = { '🔥 High Potential': true };
+                }
                 render();
             } catch (err) {
                 console.error('Failed to load:', err);
@@ -142,10 +164,14 @@
 
         // Actions
         async function fetchNews() {
+            state.newsLoading = true;
+            render();
             try {
                 await api('/feeds/fetch', { method: 'POST' });
                 await loadData();
             } catch (err) { console.error(err); }
+            state.newsLoading = false;
+            render();
         }
 
         async function analyzeArticle(id) {
@@ -153,6 +179,45 @@
                 await api(`/news/${id}/analyze`, { method: 'POST' });
                 await loadData();
             } catch (err) { console.error(err); }
+        }
+
+        function setNewsView(view) {
+            state.newsView = view;
+            render();
+        }
+
+        function toggleNewsGroup(groupName) {
+            state.expandedGroups[groupName] = !state.expandedGroups[groupName];
+            render();
+        }
+
+        function expandAllGroups() {
+            state.newsCategories.forEach(cat => state.expandedGroups[cat] = true);
+            render();
+        }
+
+        function collapseAllGroups() {
+            state.expandedGroups = {};
+            render();
+        }
+
+        function setNewsMinScore(score) {
+            state.newsMinScore = parseInt(score);
+            render();
+        }
+
+        function getScoreColor(score) {
+            if (score >= 70) return 'text-neon-green';
+            if (score >= 50) return 'text-neon-amber';
+            if (score >= 30) return 'text-electric';
+            return 'text-slate-500';
+        }
+
+        function getScoreBg(score) {
+            if (score >= 70) return 'bg-neon-green/20';
+            if (score >= 50) return 'bg-neon-amber/20';
+            if (score >= 30) return 'bg-electric/20';
+            return 'bg-slate-800';
         }
 
         async function uploadAd(data) {
@@ -331,39 +396,212 @@
         }
 
         function renderNews() {
+            const filteredArticles = state.articles.filter(a => (a.relevance_score || 0) >= state.newsMinScore);
+            const topArticles = state.articles.filter(a => (a.relevance_score || 0) >= 60);
+            
             return `
                 <div class="space-y-6">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-2xl font-display font-bold">News Feed</h2>
-                        <span class="text-sm text-slate-500">${state.articles.length} articles</span>
+                    <!-- Header -->
+                    <div class="flex items-center justify-between flex-wrap gap-4">
+                        <div>
+                            <h2 class="text-2xl font-display font-bold">News Intelligence</h2>
+                            <p class="text-sm text-slate-500 mt-1">Articles scored by copywriting potential</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="fetchNews()" ${state.newsLoading ? 'disabled' : ''} class="flex items-center gap-2 px-4 py-2 rounded-lg bg-electric text-white hover:bg-electric-light transition-colors disabled:opacity-50">
+                                <i data-lucide="${state.newsLoading ? 'loader-2' : 'refresh-cw'}" class="w-4 h-4 ${state.newsLoading ? 'animate-spin' : ''}"></i>
+                                ${state.newsLoading ? 'Fetching...' : 'Fetch Latest'}
+                            </button>
+                        </div>
                     </div>
-                    <div class="space-y-3">
-                        ${state.articles.length === 0 ? `
-                            <div class="glass rounded-xl p-8 text-center">
-                                <i data-lucide="newspaper" class="w-12 h-12 text-slate-600 mx-auto mb-4"></i>
-                                <p class="text-slate-500">No articles yet. Click "Fetch Latest News" to get started.</p>
+
+                    <!-- View Tabs & Controls -->
+                    <div class="glass rounded-xl p-4">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
+                            <div class="flex gap-1 p-1 rounded-lg bg-slate-800/50">
+                                <button onclick="setNewsView('grouped')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'grouped' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
+                                    <i data-lucide="layout-grid" class="w-4 h-4 inline mr-1"></i>By Category
+                                </button>
+                                <button onclick="setNewsView('top')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'top' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
+                                    <i data-lucide="flame" class="w-4 h-4 inline mr-1"></i>Top Picks (${topArticles.length})
+                                </button>
+                                <button onclick="setNewsView('flat')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'flat' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
+                                    <i data-lucide="list" class="w-4 h-4 inline mr-1"></i>All (${state.articles.length})
+                                </button>
                             </div>
-                        ` : state.articles.map(a => `
-                            <div class="glass rounded-xl p-4 hover:border-electric/30 transition-all">
-                                <div class="flex items-start gap-4">
-                                    <div class="flex-1 min-w-0">
-                                        <a href="${a.url}" target="_blank" class="font-medium text-white hover:text-electric transition-colors line-clamp-2">${a.title}</a>
-                                        <div class="flex items-center gap-3 mt-2 text-xs text-slate-500">
-                                            <span>${a.feed_name || 'Unknown'}</span>
-                                            ${a.trending_angles ? '<span class="px-2 py-0.5 rounded-full bg-neon-green/20 text-neon-green">Analyzed</span>' : ''}
+                            
+                            ${state.newsView === 'flat' ? `
+                                <div class="flex items-center gap-3">
+                                    <label class="text-sm text-slate-400">Min Score:</label>
+                                    <input type="range" min="0" max="80" value="${state.newsMinScore}" onchange="setNewsMinScore(this.value)" class="w-32 accent-electric">
+                                    <span class="text-sm font-mono ${getScoreColor(state.newsMinScore)}">${state.newsMinScore}+</span>
+                                </div>
+                            ` : ''}
+                            
+                            ${state.newsView === 'grouped' ? `
+                                <div class="flex gap-2">
+                                    <button onclick="expandAllGroups()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600">Expand All</button>
+                                    <button onclick="collapseAllGroups()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600">Collapse All</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Score Legend -->
+                    <div class="flex items-center gap-6 text-xs text-slate-500">
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-neon-green"></span> High Potential (70+)</span>
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-neon-amber"></span> Good (50-69)</span>
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-electric"></span> Fair (30-49)</span>
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-600"></span> Low (&lt;30)</span>
+                    </div>
+
+                    <!-- Content based on view -->
+                    ${state.articles.length === 0 ? `
+                        <div class="glass rounded-xl p-12 text-center">
+                            <i data-lucide="newspaper" class="w-16 h-16 text-slate-600 mx-auto mb-4"></i>
+                            <p class="text-slate-400 text-lg">No articles yet</p>
+                            <p class="text-slate-500 text-sm mt-2">Click "Fetch Latest" to pull in news from your RSS feeds</p>
+                        </div>
+                    ` : state.newsView === 'grouped' ? renderGroupedNews() : state.newsView === 'top' ? renderTopNews() : renderFlatNews(filteredArticles)}
+                </div>
+            `;
+        }
+
+        function renderGroupedNews() {
+            const groups = state.newsGroups;
+            const categories = Object.keys(groups);
+            
+            if (categories.length === 0) {
+                return `<p class="text-slate-500 text-center py-8">No categorized articles found.</p>`;
+            }
+
+            return `
+                <div class="space-y-4">
+                    ${categories.map(category => {
+                        const articles = groups[category] || [];
+                        const isExpanded = state.expandedGroups[category];
+                        const avgScore = articles.length > 0 ? Math.round(articles.reduce((sum, a) => sum + (a.relevance_score || 0), 0) / articles.length) : 0;
+                        
+                        return `
+                            <div class="glass rounded-xl overflow-hidden">
+                                <button onclick="toggleNewsGroup('${category}')" class="w-full flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors text-left">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-2xl">${category.split(' ')[0]}</span>
+                                        <div>
+                                            <h3 class="font-semibold text-white">${category.split(' ').slice(1).join(' ')}</h3>
+                                            <p class="text-xs text-slate-500">${articles.length} articles • Avg score: <span class="${getScoreColor(avgScore)}">${avgScore}</span></p>
                                         </div>
-                                        ${a.trending_angles ? `
-                                            <div class="mt-3 flex flex-wrap gap-2">
-                                                ${a.trending_angles.slice(0,3).map(t => `<span class="text-xs px-2 py-1 rounded-lg bg-electric/10 text-electric-light">${t}</span>`).join('')}
+                                    </div>
+                                    <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-5 h-5 text-slate-400"></i>
+                                </button>
+                                
+                                ${isExpanded ? `
+                                    <div class="border-t border-slate-800 divide-y divide-slate-800/50">
+                                        ${articles.slice(0, 15).map(a => renderNewsArticle(a)).join('')}
+                                        ${articles.length > 15 ? `
+                                            <div class="p-3 text-center text-sm text-slate-500">
+                                                +${articles.length - 15} more articles in this category
                                             </div>
                                         ` : ''}
                                     </div>
-                                    <button onclick="analyzeArticle(${a.id})" class="px-3 py-1.5 text-sm rounded-lg bg-electric/10 text-electric hover:bg-electric/20 transition-colors">
-                                        ${a.trending_angles ? 'Re-analyze' : 'Analyze'}
-                                    </button>
-                                </div>
+                                ` : ''}
                             </div>
-                        `).join('')}
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function renderTopNews() {
+            const topArticles = state.articles.filter(a => (a.relevance_score || 0) >= 60);
+            
+            if (topArticles.length === 0) {
+                return `
+                    <div class="glass rounded-xl p-8 text-center">
+                        <i data-lucide="flame" class="w-12 h-12 text-slate-600 mx-auto mb-4"></i>
+                        <p class="text-slate-400">No high-potential articles found.</p>
+                        <p class="text-slate-500 text-sm mt-2">Try fetching more news or lowering your threshold.</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="space-y-3">
+                    <p class="text-sm text-slate-500 mb-4">These articles have the highest copywriting potential (score 60+)</p>
+                    ${topArticles.map(a => `
+                        <div class="glass rounded-xl p-4 hover:border-neon-green/30 border border-transparent transition-all">
+                            ${renderNewsArticle(a, true)}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderFlatNews(articles) {
+            return `
+                <div class="space-y-3">
+                    <p class="text-sm text-slate-500 mb-4">Showing ${articles.length} articles with score ${state.newsMinScore}+</p>
+                    ${articles.map(a => `
+                        <div class="glass rounded-xl p-4 hover:border-electric/30 transition-all">
+                            ${renderNewsArticle(a, true)}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderNewsArticle(a, showDetails = false) {
+            const score = a.relevance_score || 0;
+            const categories = a.categories || [];
+            const hookPotential = a.hook_potential || '';
+            const copyAngle = a.copy_angle || '';
+            
+            return `
+                <div class="p-4 flex items-start gap-4">
+                    <!-- Score Badge -->
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="w-12 h-12 rounded-xl ${getScoreBg(score)} flex items-center justify-center">
+                            <span class="text-lg font-bold ${getScoreColor(score)}">${score}</span>
+                        </div>
+                        <span class="text-[10px] text-slate-500 uppercase">Score</span>
+                    </div>
+                    
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0">
+                        <a href="${a.url}" target="_blank" class="font-medium text-white hover:text-electric transition-colors line-clamp-2 text-base">${a.title}</a>
+                        
+                        <div class="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                            <span class="flex items-center gap-1"><i data-lucide="rss" class="w-3 h-3"></i> ${a.feed_name || 'Unknown'}</span>
+                            ${a.published_at ? `<span>${new Date(a.published_at).toLocaleDateString()}</span>` : ''}
+                        </div>
+                        
+                        ${categories.length > 0 ? `
+                            <div class="mt-2 flex flex-wrap gap-1">
+                                ${categories.slice(0, 4).map(c => `
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">${c.replace(/_/g, ' ')}</span>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        
+                        ${showDetails && (hookPotential || copyAngle) ? `
+                            <div class="mt-3 p-3 rounded-lg bg-slate-800/50 text-sm">
+                                ${hookPotential ? `<p class="text-slate-400"><span class="text-electric">Hook idea:</span> ${hookPotential}</p>` : ''}
+                                ${copyAngle ? `<p class="text-slate-300 mt-1 font-medium">"${copyAngle}"</p>` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        ${a.trending_angles ? `
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                ${a.trending_angles.slice(0,3).map(t => `<span class="text-xs px-2 py-1 rounded-lg bg-electric/10 text-electric-light">${t}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="flex flex-col gap-2">
+                        <button onclick="analyzeArticle(${a.id})" class="px-3 py-1.5 text-xs rounded-lg bg-electric/10 text-electric hover:bg-electric/20 transition-colors" title="Deep analyze with AI">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        </button>
                     </div>
                 </div>
             `;
