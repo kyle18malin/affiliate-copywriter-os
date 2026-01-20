@@ -138,6 +138,30 @@ async def create_niche(niche: NicheCreate, db: AsyncSession = Depends(get_db)):
     return await niche_service.create_niche(db, niche.name, niche.description)
 
 
+@router.delete("/niches/{niche_id}")
+async def delete_niche(niche_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a niche"""
+    from sqlalchemy import select, update
+    from backend.models import Niche, Ad
+    
+    # First unassign any ads from this niche
+    await db.execute(
+        update(Ad).where(Ad.niche_id == niche_id).values(niche_id=None)
+    )
+    
+    # Delete the niche
+    result = await db.execute(select(Niche).where(Niche.id == niche_id))
+    niche = result.scalar_one_or_none()
+    
+    if not niche:
+        raise HTTPException(status_code=404, detail="Niche not found")
+    
+    await db.delete(niche)
+    await db.commit()
+    
+    return {"message": "Niche deleted successfully"}
+
+
 # ============== RSS Feed Routes ==============
 
 @router.get("/feeds", response_model=list[FeedResponse])
