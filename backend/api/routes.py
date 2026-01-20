@@ -1,15 +1,19 @@
 """
 Affiliate Copywriter OS - API Routes
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import Optional
 from backend.database import get_db
 from backend.services import rss_service, ad_service, ai_service, niche_service
+from backend.services import transcription_service
 from backend.models import GeneratedHook
 
 router = APIRouter()
+
+# Max file size: 25MB (Whisper API limit)
+MAX_FILE_SIZE = 25 * 1024 * 1024
 
 
 # ============== Pydantic Models ==============
@@ -225,6 +229,63 @@ async def analyze_ad(ad_id: int, db: AsyncSession = Depends(get_db)):
     saved_pattern = await ad_service.save_ad_patterns(db, ad_id, patterns)
     
     return patterns
+
+
+@router.post("/ads/upload-video")
+async def upload_video_ad(
+    file: UploadFile = File(...),
+    title: Optional[str] = Form(None),
+    niche_id: Optional[int] = Form(None),
+    source: Optional[str] = Form(None),
+    performance_notes: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Upload a video ad, transcribe it, and save the transcription as ad copy.
+    The video is NOT stored - only the transcribed text.
+    
+    Supports: mp4, mov, avi, mkv, webm, mp3, wav, m4a, ogg
+    Max size: 25MB
+    """
+    # Validate file size
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413, 
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+        )
+    
+    # Transcribe the video
+    try:
+        transcription = await transcription_service.transcribe_video(content, file.filename)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+    
+    # Format and save as ad
+    ad_content = transcription_service.format_transcription_as_ad(transcription)
+    
+    if not ad_content.strip():
+        raise HTTPException(status_code=400, detail="No speech detected in the video")
+    
+    # Create the ad with transcribed content
+    new_ad = await ad_service.create_ad(
+        db,
+        content=ad_content,
+        title=title or f"Video Ad - {file.filename}",
+        niche_id=niche_id,
+        source=source or "Video Upload (Transcribed)",
+        performance_notes=performance_notes
+    )
+    
+    return {
+        "id": new_ad.id,
+        "message": "Video transcribed and saved as ad",
+        "transcription": ad_content,
+        "duration_seconds": transcription.get("duration"),
+        "language": transcription.get("language")
+    }
 
 
 # ============== Hook Generation Routes ==============

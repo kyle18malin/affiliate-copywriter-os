@@ -362,10 +362,75 @@
                 <div class="space-y-6">
                     <div class="flex items-center justify-between">
                         <h2 class="text-2xl font-display font-bold">Ad Library</h2>
-                        <button onclick="toggleAdForm()" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-electric text-white hover:bg-electric-light transition-colors">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Upload Ad
-                        </button>
+                        <div class="flex gap-2">
+                            <button onclick="toggleVideoForm()" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-neon-rose/20 text-neon-rose hover:bg-neon-rose/30 transition-colors">
+                                <i data-lucide="video" class="w-4 h-4"></i> Upload Video
+                            </button>
+                            <button onclick="toggleAdForm()" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-electric text-white hover:bg-electric-light transition-colors">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Upload Text
+                            </button>
+                        </div>
                     </div>
+                    
+                    <!-- Video Upload Form -->
+                    <div id="video-form" class="hidden glass rounded-xl p-6 space-y-4 border border-neon-rose/30">
+                        <div class="flex items-center gap-2 text-neon-rose mb-2">
+                            <i data-lucide="video" class="w-5 h-5"></i>
+                            <span class="font-medium">Upload Video Ad</span>
+                        </div>
+                        <p class="text-sm text-slate-400">Upload a video ad and we'll transcribe it automatically. The video won't be stored - only the ad copy.</p>
+                        
+                        <div id="video-dropzone" class="border-2 border-dashed border-slate-700 rounded-xl p-8 text-center hover:border-neon-rose/50 transition-colors cursor-pointer" onclick="document.getElementById('video-file').click()">
+                            <input type="file" id="video-file" class="hidden" accept="video/*,audio/*,.mp4,.mov,.avi,.mkv,.webm,.mp3,.wav,.m4a" onchange="handleVideoSelect(this)">
+                            <i data-lucide="upload-cloud" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i>
+                            <p class="text-slate-400">Click to upload or drag and drop</p>
+                            <p class="text-xs text-slate-600 mt-1">MP4, MOV, AVI, WebM, MP3, WAV (max 25MB)</p>
+                        </div>
+                        
+                        <div id="video-selected" class="hidden p-4 rounded-lg bg-slate-800/50">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="file-video" class="w-8 h-8 text-neon-rose"></i>
+                                <div class="flex-1">
+                                    <p id="video-filename" class="text-white font-medium"></p>
+                                    <p id="video-filesize" class="text-xs text-slate-500"></p>
+                                </div>
+                                <button onclick="clearVideoFile()" class="p-2 hover:bg-slate-700 rounded-lg">
+                                    <i data-lucide="x" class="w-4 h-4 text-slate-400"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Title (optional)</label>
+                                <input type="text" id="video-title" class="w-full px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-neon-rose focus:outline-none" placeholder="e.g., Top Performing Video Ad">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Niche (optional)</label>
+                                <select id="video-niche" class="w-full px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-neon-rose focus:outline-none">
+                                    <option value="">Universal (all niches)</option>
+                                    ${state.niches.map(n => `<option value="${n.id}">${n.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button id="video-upload-btn" onclick="handleUploadVideo()" disabled class="w-full py-3 rounded-lg bg-neon-rose text-white font-medium hover:bg-neon-rose/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                            <i data-lucide="wand-2" class="w-5 h-5"></i>
+                            Transcribe & Save
+                        </button>
+                        
+                        <div id="video-progress" class="hidden">
+                            <div class="flex items-center gap-3 p-4 rounded-lg bg-slate-800/50">
+                                <i data-lucide="loader-2" class="w-6 h-6 text-neon-rose animate-spin"></i>
+                                <div>
+                                    <p class="text-white font-medium">Transcribing video...</p>
+                                    <p class="text-xs text-slate-500">This may take a moment</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Text Upload Form -->
                     <div id="ad-form" class="hidden glass rounded-xl p-6 space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-slate-400 mb-2">Ad Copy *</label>
@@ -386,6 +451,8 @@
                         </div>
                         <button onclick="handleUploadAd()" class="w-full py-3 rounded-lg bg-electric text-white font-medium hover:bg-electric-light transition-colors">Save Ad</button>
                     </div>
+                    
+                    <!-- Ads List -->
                     <div class="space-y-3">
                         ${state.ads.length === 0 ? `
                             <div class="glass rounded-xl p-8 text-center">
@@ -399,6 +466,7 @@
                                         <h3 class="font-medium text-white">${a.title || 'Untitled Ad'}</h3>
                                         <div class="flex items-center gap-3 mt-1 text-xs text-slate-500">
                                             ${a.niche_name ? `<span class="px-2 py-0.5 rounded-full bg-electric/20 text-electric-light">${a.niche_name}</span>` : ''}
+                                            ${a.source && a.source.includes('Video') ? '<span class="px-2 py-0.5 rounded-full bg-neon-rose/20 text-neon-rose">Video Transcription</span>' : ''}
                                             ${a.patterns ? '<span class="px-2 py-0.5 rounded-full bg-neon-green/20 text-neon-green">Patterns Extracted</span>' : ''}
                                         </div>
                                     </div>
@@ -489,10 +557,92 @@
 
         function toggleAdForm() {
             document.getElementById('ad-form').classList.toggle('hidden');
+            document.getElementById('video-form').classList.add('hidden');
+        }
+
+        function toggleVideoForm() {
+            document.getElementById('video-form').classList.toggle('hidden');
+            document.getElementById('ad-form').classList.add('hidden');
         }
 
         function toggleFeedForm() {
             document.getElementById('feed-form').classList.toggle('hidden');
+        }
+
+        // Video upload state
+        let selectedVideoFile = null;
+
+        function handleVideoSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            // Validate file size (25MB max)
+            if (file.size > 25 * 1024 * 1024) {
+                alert('File too large. Maximum size is 25MB.');
+                return;
+            }
+            
+            selectedVideoFile = file;
+            document.getElementById('video-dropzone').classList.add('hidden');
+            document.getElementById('video-selected').classList.remove('hidden');
+            document.getElementById('video-filename').textContent = file.name;
+            document.getElementById('video-filesize').textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+            document.getElementById('video-upload-btn').disabled = false;
+            lucide.createIcons();
+        }
+
+        function clearVideoFile() {
+            selectedVideoFile = null;
+            document.getElementById('video-file').value = '';
+            document.getElementById('video-dropzone').classList.remove('hidden');
+            document.getElementById('video-selected').classList.add('hidden');
+            document.getElementById('video-upload-btn').disabled = true;
+        }
+
+        async function handleUploadVideo() {
+            if (!selectedVideoFile) return;
+            
+            const title = document.getElementById('video-title').value;
+            const nicheId = document.getElementById('video-niche').value;
+            
+            // Show progress
+            document.getElementById('video-upload-btn').classList.add('hidden');
+            document.getElementById('video-progress').classList.remove('hidden');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedVideoFile);
+                if (title) formData.append('title', title);
+                if (nicheId) formData.append('niche_id', nicheId);
+                
+                const res = await fetch('/api/ads/upload-video', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Upload failed');
+                }
+                
+                const result = await res.json();
+                alert(`Video transcribed successfully!\n\nTranscription preview:\n"${result.transcription.substring(0, 200)}..."`);
+                
+                // Reset form
+                clearVideoFile();
+                document.getElementById('video-title').value = '';
+                document.getElementById('video-niche').value = '';
+                toggleVideoForm();
+                
+                // Reload data
+                await loadData();
+            } catch (err) {
+                console.error(err);
+                alert('Error: ' + err.message);
+            } finally {
+                document.getElementById('video-upload-btn').classList.remove('hidden');
+                document.getElementById('video-progress').classList.add('hidden');
+            }
         }
 
         async function handleGenerate() {
