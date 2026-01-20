@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Affiliate Copywriter OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'midnight': '#0a0a0f',
+                        'obsidian': '#12121a',
+                        'slate-dark': '#1a1a24',
+                        'electric': '#6366f1',
+                        'electric-light': '#818cf8',
+                        'neon-green': '#22c55e',
+                        'neon-amber': '#f59e0b',
+                        'neon-rose': '#f43f5e',
+                    },
+                    fontFamily: {
+                        'display': ['Cabinet Grotesk', 'system-ui', 'sans-serif'],
+                        'body': ['Satoshi', 'system-ui', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { 
+            background: #0a0a0f; 
+            font-family: 'Satoshi', system-ui, sans-serif;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #6366f1 0%, #818cf8 50%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glass {
+            background: rgba(18, 18, 26, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(99, 102, 241, 0.1);
+        }
+        .pattern-grid {
+            background-image: 
+                linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #12121a; }
+        ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-200 pattern-grid">
+    <div id="app" class="flex">
+        <!-- Sidebar -->
+        <aside class="fixed left-0 top-0 h-full w-64 glass border-r border-slate-800/50 p-4 flex flex-col">
+            <div class="flex items-center gap-3 mb-8 px-2">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-electric to-electric-light flex items-center justify-center">
+                    <i data-lucide="zap" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="font-display font-bold text-white">CopywriterOS</h1>
+                    <p class="text-xs text-slate-500">Affiliate Edition</p>
+                </div>
+            </div>
+            <nav id="nav" class="flex-1 space-y-1"></nav>
+            <div class="mt-auto pt-4 border-t border-slate-800">
+                <div class="px-4 py-3">
+                    <p class="text-xs text-slate-500 mb-2">Active Niches</p>
+                    <div id="niches-sidebar" class="flex flex-wrap gap-1"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="ml-64 p-8 flex-1">
+            <div class="max-w-5xl mx-auto" id="content"></div>
+        </main>
+    </div>
+
+    <script>
+        const API = '/api';
+        let state = {
+            tab: 'dashboard',
+            stats: { feeds: 0, articles: 0, ads: 0, patterns: 0, hooks_generated: 0 },
+            niches: [],
+            articles: [],
+            ads: [],
+            feeds: [],
+            hooks: [],
+            loading: true,
+            generating: false
+        };
+
+        // API Helper
+        async function api(endpoint, options = {}) {
+            const res = await fetch(`${API}${endpoint}`, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...options.headers }
+            });
+            if (!res.ok) throw new Error(`API error: ${res.status}`);
+            return res.json();
+        }
+
+        // Load all data
+        async function loadData() {
+            try {
+                const [stats, niches, articles, ads, feeds] = await Promise.all([
+                    api('/stats'),
+                    api('/niches'),
+                    api('/news?limit=30'),
+                    api('/ads'),
+                    api('/feeds')
+                ]);
+                state = { ...state, stats, niches, articles, ads, feeds, loading: false };
+                render();
+            } catch (err) {
+                console.error('Failed to load:', err);
+                state.loading = false;
+                render();
+            }
+        }
+
+        // Actions
+        async function fetchNews() {
+            try {
+                await api('/feeds/fetch', { method: 'POST' });
+                await loadData();
+            } catch (err) { console.error(err); }
+        }
+
+        async function analyzeArticle(id) {
+            try {
+                await api(`/news/${id}/analyze`, { method: 'POST' });
+                await loadData();
+            } catch (err) { console.error(err); }
+        }
+
+        async function uploadAd(data) {
+            try {
+                await api('/ads', { method: 'POST', body: JSON.stringify(data) });
+                await loadData();
+            } catch (err) { console.error(err); }
+        }
+
+        async function analyzeAd(id) {
+            try {
+                await api(`/ads/${id}/analyze`, { method: 'POST' });
+                await loadData();
+            } catch (err) { console.error(err); }
+        }
+
+        async function generateHooks(nicheId, numHooks, hookStyle) {
+            state.generating = true;
+            render();
+            try {
+                const result = await api('/generate/hooks', {
+                    method: 'POST',
+                    body: JSON.stringify({ niche_id: parseInt(nicheId), num_hooks: numHooks, hook_style: hookStyle || null })
+                });
+                state.hooks = result.hooks || [];
+                await loadData();
+                return result;
+            } catch (err) { 
+                console.error(err);
+                return null;
+            } finally {
+                state.generating = false;
+                render();
+            }
+        }
+
+        async function addFeed(data) {
+            try {
+                await api('/feeds', { method: 'POST', body: JSON.stringify(data) });
+                await loadData();
+            } catch (err) { console.error(err); }
+        }
+
+        // Render functions
+        function renderNav() {
+            const tabs = [
+                { id: 'dashboard', label: 'Dashboard', icon: 'trending-up' },
+                { id: 'generate', label: 'Generate', icon: 'sparkles' },
+                { id: 'news', label: 'News', icon: 'newspaper' },
+                { id: 'ads', label: 'Ads', icon: 'file-text' },
+                { id: 'feeds', label: 'Feeds', icon: 'rss' },
+            ];
+            document.getElementById('nav').innerHTML = tabs.map(t => `
+                <button onclick="setTab('${t.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${state.tab === t.id ? 'bg-electric/20 text-electric' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'}">
+                    <i data-lucide="${t.icon}" class="w-5 h-5"></i>
+                    <span class="font-medium">${t.label}</span>
+                </button>
+            `).join('');
+        }
+
+        function renderNichesSidebar() {
+            document.getElementById('niches-sidebar').innerHTML = state.niches.map(n => 
+                `<span class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-400">${n.name}</span>`
+            ).join('');
+        }
+
+        function renderDashboard() {
+            return `
+                <div class="space-y-8">
+                    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-electric/20 via-obsidian to-obsidian p-8 border border-electric/20">
+                        <div class="absolute top-0 right-0 w-96 h-96 bg-electric/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                        <div class="relative">
+                            <h1 class="text-4xl font-display font-bold gradient-text mb-3">Affiliate Copywriter OS</h1>
+                            <p class="text-slate-400 text-lg max-w-xl">AI-powered hook generation combining trending news with proven ad patterns.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        ${[
+                            { label: 'RSS Feeds', value: state.stats.feeds, icon: 'rss', color: 'electric' },
+                            { label: 'News Articles', value: state.stats.articles, icon: 'newspaper', color: 'neon-amber' },
+                            { label: 'Winning Ads', value: state.stats.ads, icon: 'file-text', color: 'neon-green' },
+                            { label: 'Hooks Generated', value: state.stats.hooks_generated, icon: 'sparkles', color: 'neon-rose' },
+                        ].map(s => `
+                            <div class="glass rounded-xl p-5 hover:border-electric/30 transition-all">
+                                <i data-lucide="${s.icon}" class="w-5 h-5 mb-3 text-${s.color}"></i>
+                                <div class="text-3xl font-display font-bold text-white mb-1">${s.value || 0}</div>
+                                <div class="text-sm text-slate-500">${s.label}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <button onclick="fetchNews()" class="glass rounded-xl p-5 hover:border-electric/40 transition-all text-left group">
+                            <i data-lucide="refresh-cw" class="w-6 h-6 text-electric mb-3"></i>
+                            <h3 class="font-semibold text-white mb-1">Fetch Latest News</h3>
+                            <p class="text-sm text-slate-500">Pull articles from all RSS feeds</p>
+                        </button>
+                        <button onclick="setTab('ads')" class="glass rounded-xl p-5 hover:border-electric/40 transition-all text-left group">
+                            <i data-lucide="plus" class="w-6 h-6 text-electric mb-3"></i>
+                            <h3 class="font-semibold text-white mb-1">Upload Winning Ad</h3>
+                            <p class="text-sm text-slate-500">Add an ad to your swipe file</p>
+                        </button>
+                        <button onclick="setTab('generate')" class="glass rounded-xl p-5 hover:border-electric/40 transition-all text-left group">
+                            <i data-lucide="sparkles" class="w-6 h-6 text-electric mb-3"></i>
+                            <h3 class="font-semibold text-white mb-1">Generate Hooks</h3>
+                            <p class="text-sm text-slate-500">Create AI-powered ad hooks</p>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderGenerate() {
+            return `
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="text-2xl font-display font-bold mb-2">Generate Hooks</h2>
+                        <p class="text-slate-500">AI-powered hook generation combining your winning ads with trending news.</p>
+                    </div>
+                    <div class="glass rounded-xl p-6">
+                        <div class="grid md:grid-cols-3 gap-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Niche *</label>
+                                <select id="gen-niche" class="w-full px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none">
+                                    <option value="">Select a niche</option>
+                                    ${state.niches.map(n => `<option value="${n.id}">${n.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Number of Hooks</label>
+                                <select id="gen-num" class="w-full px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none">
+                                    ${[3,5,10,15,20].map(n => `<option value="${n}" ${n===5?'selected':''}>${n} hooks</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Hook Style</label>
+                                <select id="gen-style" class="w-full px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none">
+                                    <option value="">Any style</option>
+                                    <option value="question">Questions</option>
+                                    <option value="shocking stat">Shocking Stats</option>
+                                    <option value="story">Story Hooks</option>
+                                    <option value="curiosity">Curiosity Gaps</option>
+                                    <option value="fear">Fear/Urgency</option>
+                                    <option value="benefit">Benefit-Led</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="handleGenerate()" ${state.generating ? 'disabled' : ''} class="w-full py-3 rounded-lg bg-gradient-to-r from-electric to-electric-light text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
+                            ${state.generating ? '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Generating...' : '<i data-lucide="sparkles" class="w-5 h-5"></i> Generate Hooks'}
+                        </button>
+                    </div>
+                    ${state.hooks.length > 0 ? `
+                        <div class="space-y-3">
+                            <h3 class="text-lg font-semibold">Generated Hooks</h3>
+                            ${state.hooks.map((h, i) => `
+                                <div class="glass rounded-xl p-5 hover:border-electric/30 transition-all">
+                                    <div class="flex items-start gap-4">
+                                        <div class="w-8 h-8 rounded-lg bg-electric/20 text-electric flex items-center justify-center font-mono text-sm">${i+1}</div>
+                                        <div class="flex-1">
+                                            <p class="text-white text-lg leading-relaxed">${h.hook_text}</p>
+                                            <div class="flex items-center gap-3 mt-3">
+                                                <span class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-400">${h.hook_type || 'hook'}</span>
+                                                <span class="text-xs px-2 py-1 rounded bg-neon-rose/10 text-neon-rose">${h.emotional_trigger || ''}</span>
+                                            </div>
+                                        </div>
+                                        <button onclick="copyHook('${h.hook_text.replace(/'/g, "\\'")}')" class="p-2 rounded-lg hover:bg-slate-800 transition-colors">
+                                            <i data-lucide="copy" class="w-5 h-5 text-slate-500"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderNews() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-display font-bold">News Feed</h2>
+                        <span class="text-sm text-slate-500">${state.articles.length} articles</span>
+                    </div>
+                    <div class="space-y-3">
+                        ${state.articles.length === 0 ? `
+                            <div class="glass rounded-xl p-8 text-center">
+                                <i data-lucide="newspaper" class="w-12 h-12 text-slate-600 mx-auto mb-4"></i>
+                                <p class="text-slate-500">No articles yet. Click "Fetch Latest News" to get started.</p>
+                            </div>
+                        ` : state.articles.map(a => `
+                            <div class="glass rounded-xl p-4 hover:border-electric/30 transition-all">
+                                <div class="flex items-start gap-4">
+                                    <div class="flex-1 min-w-0">
+                                        <a href="${a.url}" target="_blank" class="font-medium text-white hover:text-electric transition-colors line-clamp-2">${a.title}</a>
+                                        <div class="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                                            <span>${a.feed_name || 'Unknown'}</span>
+                                            ${a.trending_angles ? '<span class="px-2 py-0.5 rounded-full bg-neon-green/20 text-neon-green">Analyzed</span>' : ''}
+                                        </div>
+                                        ${a.trending_angles ? `
+                                            <div class="mt-3 flex flex-wrap gap-2">
+                                                ${a.trending_angles.slice(0,3).map(t => `<span class="text-xs px-2 py-1 rounded-lg bg-electric/10 text-electric-light">${t}</span>`).join('')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                    <button onclick="analyzeArticle(${a.id})" class="px-3 py-1.5 text-sm rounded-lg bg-electric/10 text-electric hover:bg-electric/20 transition-colors">
+                                        ${a.trending_angles ? 'Re-analyze' : 'Analyze'}
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAds() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-display font-bold">Ad Library</h2>
+                        <button onclick="toggleAdForm()" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-electric text-white hover:bg-electric-light transition-colors">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Upload Ad
+                        </button>
+                    </div>
+                    <div id="ad-form" class="hidden glass rounded-xl p-6 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Ad Copy *</label>
+                            <textarea id="ad-content" class="w-full h-40 px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none resize-none" placeholder="Paste your winning ad copy here..."></textarea>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Title</label>
+                                <input type="text" id="ad-title" class="w-full px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none" placeholder="e.g., High CTR Insurance Ad">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Niche (optional)</label>
+                                <select id="ad-niche" class="w-full px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none">
+                                    <option value="">Universal (all niches)</option>
+                                    ${state.niches.map(n => `<option value="${n.id}">${n.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="handleUploadAd()" class="w-full py-3 rounded-lg bg-electric text-white font-medium hover:bg-electric-light transition-colors">Save Ad</button>
+                    </div>
+                    <div class="space-y-3">
+                        ${state.ads.length === 0 ? `
+                            <div class="glass rounded-xl p-8 text-center">
+                                <i data-lucide="file-text" class="w-12 h-12 text-slate-600 mx-auto mb-4"></i>
+                                <p class="text-slate-500">No ads yet. Upload your first winning ad to get started.</p>
+                            </div>
+                        ` : state.ads.map(a => `
+                            <div class="glass rounded-xl p-5 hover:border-electric/30 transition-all">
+                                <div class="flex items-start justify-between gap-4 mb-3">
+                                    <div>
+                                        <h3 class="font-medium text-white">${a.title || 'Untitled Ad'}</h3>
+                                        <div class="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                                            ${a.niche_name ? `<span class="px-2 py-0.5 rounded-full bg-electric/20 text-electric-light">${a.niche_name}</span>` : ''}
+                                            ${a.patterns ? '<span class="px-2 py-0.5 rounded-full bg-neon-green/20 text-neon-green">Patterns Extracted</span>' : ''}
+                                        </div>
+                                    </div>
+                                    <button onclick="analyzeAd(${a.id})" class="px-3 py-1.5 text-sm rounded-lg bg-neon-amber/10 text-neon-amber hover:bg-neon-amber/20 transition-colors">
+                                        ${a.patterns ? 'Re-analyze' : 'Extract Patterns'}
+                                    </button>
+                                </div>
+                                <p class="text-sm text-slate-400 whitespace-pre-wrap line-clamp-4">${a.content}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFeeds() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-display font-bold">RSS Feeds</h2>
+                        <button onclick="toggleFeedForm()" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-electric text-white hover:bg-electric-light transition-colors">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add Feed
+                        </button>
+                    </div>
+                    <div id="feed-form" class="hidden glass rounded-xl p-6 space-y-4">
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Feed Name *</label>
+                                <input type="text" id="feed-name" class="w-full px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none" placeholder="e.g., TechCrunch">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">RSS URL *</label>
+                                <input type="url" id="feed-url" class="w-full px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-400 mb-2">Category</label>
+                                <input type="text" id="feed-category" class="w-full px-4 py-3 rounded-lg bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none" placeholder="e.g., Tech, Finance" value="General">
+                            </div>
+                        </div>
+                        <button onclick="handleAddFeed()" class="px-6 py-2 rounded-lg bg-electric text-white font-medium hover:bg-electric-light transition-colors">Add Feed</button>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-3">
+                        ${state.feeds.map(f => `
+                            <div class="glass rounded-xl p-4 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-neon-amber/20 text-neon-amber flex items-center justify-center">
+                                    <i data-lucide="rss" class="w-5 h-5"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="font-medium text-white truncate">${f.name}</h3>
+                                    <p class="text-xs text-slate-500 truncate">${f.url}</p>
+                                </div>
+                                <span class="px-2 py-1 text-xs rounded-full ${f.is_active ? 'bg-neon-green/20 text-neon-green' : 'bg-slate-800 text-slate-500'}">
+                                    ${f.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function render() {
+            renderNav();
+            renderNichesSidebar();
+            
+            let content = '';
+            if (state.loading) {
+                content = '<div class="flex items-center justify-center h-64"><i data-lucide="loader-2" class="w-8 h-8 text-electric animate-spin"></i></div>';
+            } else {
+                switch(state.tab) {
+                    case 'dashboard': content = renderDashboard(); break;
+                    case 'generate': content = renderGenerate(); break;
+                    case 'news': content = renderNews(); break;
+                    case 'ads': content = renderAds(); break;
+                    case 'feeds': content = renderFeeds(); break;
+                }
+            }
+            document.getElementById('content').innerHTML = content;
+            lucide.createIcons();
+        }
+
+        // Event handlers
+        function setTab(tab) {
+            state.tab = tab;
+            state.hooks = [];
+            render();
+        }
+
+        function toggleAdForm() {
+            document.getElementById('ad-form').classList.toggle('hidden');
+        }
+
+        function toggleFeedForm() {
+            document.getElementById('feed-form').classList.toggle('hidden');
+        }
+
+        async function handleGenerate() {
+            const niche = document.getElementById('gen-niche').value;
+            const num = parseInt(document.getElementById('gen-num').value);
+            const style = document.getElementById('gen-style').value;
+            if (!niche) return alert('Please select a niche');
+            await generateHooks(niche, num, style);
+        }
+
+        async function handleUploadAd() {
+            const content = document.getElementById('ad-content').value;
+            const title = document.getElementById('ad-title').value;
+            const niche_id = document.getElementById('ad-niche').value;
+            if (!content) return alert('Please enter ad copy');
+            await uploadAd({ content, title, niche_id: niche_id || null });
+            toggleAdForm();
+        }
+
+        async function handleAddFeed() {
+            const name = document.getElementById('feed-name').value;
+            const url = document.getElementById('feed-url').value;
+            const category = document.getElementById('feed-category').value || 'General';
+            if (!name || !url) return alert('Please fill in name and URL');
+            await addFeed({ name, url, category });
+            toggleFeedForm();
+        }
+
+        function copyHook(text) {
+            navigator.clipboard.writeText(text);
+            alert('Copied to clipboard!');
+        }
+
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>

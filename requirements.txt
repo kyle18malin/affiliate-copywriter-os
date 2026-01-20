@@ -1,0 +1,35 @@
+# Affiliate Copywriter OS - Backend Dependencies
+
+# Web Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+
+# Database
+sqlalchemy>=2.0.30
+aiosqlite>=0.20.0
+greenlet>=3.0.0
+
+# AI Integration
+openai>=1.40.0
+anthropic>=0.34.0
+
+# RSS Feed Parsing
+feedparser>=6.0.11
+httpx>=0.27.0
+
+# Text Processing
+beautifulsoup4>=4.12.3
+lxml>=5.2.0
+
+# Scheduling
+apscheduler>=3.10.4
+
+# Utilities
+python-dotenv>=1.0.1
+pydantic>=2.8.0
+pydantic-settings>=2.4.0
+
+# Vector Search (for semantic ad matching)
+numpy>=2.0.0
+scikit-learn>=1.5.0

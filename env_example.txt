@@ -1,0 +1,16 @@
+# Affiliate Copywriter OS - Environment Variables
+# Copy this file to .env and fill in your API keys
+
+# AI API Keys (use one or both)
+OPENAI_API_KEY=sk-your-openai-key-here
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+
+# Preferred AI Provider: "openai" or "anthropic"
+AI_PROVIDER=openai
+
+# Database URL (SQLite by default, works out of the box)
+DATABASE_URL=sqlite+aiosqlite:///./affiliate_copywriter.db
+
+# Server Settings
+HOST=0.0.0.0
+PORT=8000
