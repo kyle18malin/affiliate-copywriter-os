@@ -20,90 +20,188 @@ if settings.anthropic_api_key:
     anthropic_client = AsyncAnthropic(api_key=settings.anthropic_api_key)
 
 
-# Keywords that indicate high copywriting potential
-HOOK_INDICATORS = [
-    # Emotional triggers
-    "shocking", "surprising", "secret", "hidden", "revealed", "exposed",
-    "warning", "alert", "urgent", "breaking", "exclusive", "insider",
+# HIGH VALUE - Controversial, emotional, fear/anger inducing (worth 20+ points each)
+HIGH_VALUE_TRIGGERS = [
+    # Political drama (gets people ANGRY)
+    "trump", "maga", "biden", "democrats destroy", "republicans destroy",
+    "leftist", "right-wing", "woke", "anti-woke", "liberal tears",
+    "conservative", "radical", "extremist", "socialist", "fascist",
     
-    # Numbers/specificity
-    "how to", "ways to", "reasons why", "mistakes", "tips", "hacks",
-    "%", "million", "billion", "thousands",
+    # Government outrage
+    "shutdown", "default", "debt ceiling", "government waste",
+    "taxpayer money", "big government", "deep state", "corruption",
+    "scandal", "cover-up", "exposed", "caught", "busted",
+    "investigation", "indicted", "arrested", "charged", "guilty",
     
-    # Controversy/curiosity
-    "controversial", "debate", "truth about", "myth", "actually",
-    "you won't believe", "never", "always", "everyone", "no one",
+    # Fear/danger/threat
+    "warning", "alert", "danger", "threat", "risk", "unsafe",
+    "deadly", "killed", "dies", "death", "fatal", "victims",
+    "crash", "collapse", "crisis", "emergency", "disaster",
+    "scam", "fraud", "ripoff", "stealing", "theft", "hacked",
     
-    # Fear/urgency
-    "deadline", "expires", "limited", "last chance", "before it's too late",
-    "risk", "danger", "crisis", "surge", "spike", "plunge", "crash",
+    # Money fears (losing money = high engagement)
+    "skyrocket", "surge", "spike", "soar", "explode", "double", "triple",
+    "plunge", "crash", "tank", "collapse", "recession", "depression",
+    "can't afford", "unaffordable", "priced out", "struggling",
+    "layoffs", "fired", "unemployed", "job cuts", "hiring freeze",
     
-    # Benefit-driven
-    "save", "free", "discount", "deal", "cheap", "afford",
-    "easy", "simple", "fast", "instant", "guaranteed",
+    # Outrage bait
+    "outrage", "furious", "angry", "slammed", "blasted", "ripped",
+    "destroyed", "obliterated", "humiliated", "embarrassed",
+    "caught on camera", "leaked", "secretly", "hidden",
+    "you won't believe", "exposed", "the truth about", "exposed",
+    "lied", "lying", "lies", "deceived", "betrayed", "backstabbed",
     
-    # Insurance/Finance specific
-    "rates", "premium", "coverage", "claim", "policy", "quote",
-    "mortgage", "refinance", "interest rate", "fed", "inflation",
-    "homeowner", "driver", "accident", "storm", "disaster",
+    # Breaking/urgent
+    "breaking", "just in", "urgent", "developing", "happening now",
+    "exclusive", "first look", "insider", "leaked",
+]
+
+# MEDIUM VALUE - Good hooks but less emotional (worth 10-15 points each)
+MEDIUM_VALUE_TRIGGERS = [
+    # Insurance/finance specifics
+    "rates rising", "premiums", "insurance cost", "coverage denied",
+    "claim rejected", "rate hike", "price increase",
+    "mortgage rates", "interest rates", "fed raises", "fed cuts",
+    "inflation", "cost of living", "prices",
     
-    # Political/Government (high engagement)
-    "trump", "biden", "congress", "senate", "white house", "government",
-    "shutdown", "bill", "law", "passed", "signed", "executive order",
-    "tax", "taxes", "irs", "stimulus", "relief", "benefit",
-    "election", "vote", "voters", "republican", "democrat",
-    "president", "administration", "federal", "supreme court",
-    "border", "immigration", "tariff", "trade war",
-    "scandal", "investigation", "indicted", "charged"
+    # Consumer angles
+    "hidden fees", "fine print", "gotcha", "trap", "trick",
+    "overcharged", "ripped off", "fighting back",
+    
+    # Health scares
+    "recall", "contaminated", "dangerous", "side effects",
+    "cancer", "disease", "outbreak", "virus", "epidemic",
+    
+    # Weather/disasters  
+    "hurricane", "tornado", "flood", "wildfire", "earthquake",
+    "storm", "devastation", "damage", "destroyed homes",
+    
+    # Crime/safety
+    "crime", "robbery", "assault", "shooting", "murder",
+    "unsafe", "protect yourself", "home invasion",
+]
+
+# LOW VALUE - Generic stuff (worth 5 points max)
+LOW_VALUE_TRIGGERS = [
+    "how to", "tips", "guide", "tutorial", "ways to",
+    "best", "top", "review", "comparison",
+]
+
+# NEGATIVE - Penalize boring/generic content (subtract points)
+BORING_INDICATORS = [
+    "megathread", "weekly thread", "daily thread", "discussion thread",
+    "question", "advice", "opinion", "thoughts", "help me",
+    "should i", "is it worth", "what do you think",
+    "eli5", "ama", "rant", "vent", "update",
+    "comprehensive list", "resource list", "guide to",
+    "beginner", "getting started", "101", "basics",
+    "reminder", "psa", "fyi", "til",
 ]
 
 # Categories for grouping
 CATEGORIES = {
-    "money_saving": ["save", "discount", "cheap", "deal", "free", "afford", "budget", "cost"],
-    "rates_economy": ["rate", "interest", "fed", "inflation", "economy", "market", "price"],
-    "insurance_news": ["insurance", "coverage", "claim", "policy", "premium", "deductible"],
-    "home_property": ["home", "house", "property", "mortgage", "refinance", "real estate", "housing"],
-    "auto_driving": ["car", "auto", "vehicle", "driver", "driving", "accident", "traffic"],
-    "weather_disaster": ["storm", "hurricane", "flood", "fire", "disaster", "weather", "climate"],
-    "trending_viral": ["viral", "trending", "popular", "everyone", "millions"],
-    "consumer_tips": ["tips", "hack", "trick", "secret", "how to", "guide", "mistakes"],
-    "politics_government": ["trump", "biden", "congress", "senate", "government", "shutdown", "bill", 
-                           "white house", "president", "election", "republican", "democrat", "federal",
-                           "tax", "stimulus", "tariff", "border", "immigration", "law", "passed"],
+    "politics_drama": ["trump", "biden", "maga", "democrat", "republican", "congress", "senate", 
+                       "shutdown", "scandal", "investigation", "indicted", "woke", "liberal", "conservative"],
+    "money_fears": ["recession", "inflation", "layoffs", "unemployment", "crash", "plunge", 
+                    "can't afford", "skyrocket", "surge", "spike", "priced out", "struggling"],
+    "scams_warnings": ["scam", "fraud", "warning", "alert", "ripoff", "hacked", "stolen", 
+                       "exposed", "caught", "busted", "hidden fees"],
+    "rates_economy": ["rate", "interest", "fed", "mortgage rate", "insurance rate", "premium", "price hike"],
+    "insurance_news": ["insurance", "coverage", "claim denied", "policy", "premium", "deductible"],
+    "crime_safety": ["crime", "shooting", "murder", "robbery", "assault", "arrest", "killed", "death"],
+    "disasters": ["hurricane", "tornado", "flood", "wildfire", "earthquake", "storm", "devastation", "damage"],
+    "health_scares": ["recall", "cancer", "disease", "outbreak", "contaminated", "dangerous", "side effects"],
+    "outrage": ["outrage", "furious", "slammed", "blasted", "destroyed", "lied", "betrayed", "caught on camera"],
 }
 
 
 def quick_score_article(title: str, summary: str = "") -> dict:
     """
-    Quick scoring without AI - uses keyword matching.
-    Returns score and detected categories.
+    Quick scoring without AI - uses keyword matching with weighted categories.
+    Prioritizes controversial, emotional, fear/anger content.
+    Penalizes generic/bland content.
     """
     text = f"{title} {summary}".lower()
+    title_lower = title.lower()
     
-    # Count hook indicators
-    hook_count = sum(1 for indicator in HOOK_INDICATORS if indicator in text)
+    score = 0
+    detected_categories = []
+    emotional_triggers = []
+    
+    # HIGH VALUE triggers (20 points each, max 60 from this category)
+    high_value_count = 0
+    for trigger in HIGH_VALUE_TRIGGERS:
+        if trigger in text:
+            high_value_count += 1
+            if high_value_count <= 3:  # Cap at 3
+                score += 20
+            if trigger in ["trump", "maga", "biden", "shutdown", "scandal", "crash", "scam", "warning"]:
+                emotional_triggers.append(trigger)
+    
+    # MEDIUM VALUE triggers (12 points each, max 36)
+    medium_value_count = 0
+    for trigger in MEDIUM_VALUE_TRIGGERS:
+        if trigger in text:
+            medium_value_count += 1
+            if medium_value_count <= 3:
+                score += 12
+    
+    # LOW VALUE triggers (only 3 points each)
+    for trigger in LOW_VALUE_TRIGGERS:
+        if trigger in text:
+            score += 3
+    
+    # PENALTIES for boring/generic content
+    for boring in BORING_INDICATORS:
+        if boring in title_lower:  # Only penalize if in title
+            score -= 25  # Heavy penalty
+    
+    # Penalty for questions in title (usually advice-seeking, not news)
+    if title_lower.startswith(("should i", "is it", "what do", "how do i", "can i", "would it")):
+        score -= 30
+    
+    # Penalty for Reddit-style personal posts
+    if any(x in title_lower for x in ["my ", "i'm ", "i am ", "i have ", "i just ", "i need "]):
+        score -= 20
+    
+    # BONUSES
+    # Specific numbers in negative context (fear-inducing)
+    if re.search(r'\d+%\s*(increase|rise|jump|surge|spike|hike)', text):
+        score += 15
+    if re.search(r'\$[\d,]+\s*(lost|stolen|scam|fraud)', text):
+        score += 15
+    if re.search(r'\d+\s*(killed|dead|deaths|victims|injured)', text):
+        score += 20
+    
+    # Bonus for ALL CAPS words (clickbait style)
+    if re.search(r'\b[A-Z]{4,}\b', title):
+        score += 10
+    
+    # Bonus for exclamation or strong punctuation
+    if "!" in title:
+        score += 5
     
     # Detect categories
-    detected_categories = []
     for category, keywords in CATEGORIES.items():
         if any(kw in text for kw in keywords):
             detected_categories.append(category)
     
-    # Calculate base score (0-100)
-    score = min(100, hook_count * 15 + len(detected_categories) * 10)
+    # Bonus for being in high-engagement categories
+    high_engagement_cats = ["politics_drama", "money_fears", "scams_warnings", "crime_safety", "outrage"]
+    for cat in detected_categories:
+        if cat in high_engagement_cats:
+            score += 10
     
-    # Bonus for numbers (specificity)
-    if re.search(r'\d+%|\$\d+|\d+ (million|billion|thousand)', text):
-        score = min(100, score + 15)
-    
-    # Bonus for questions (curiosity)
-    if "?" in title:
-        score = min(100, score + 10)
+    # Clamp score between 0-100
+    score = max(0, min(100, score))
     
     return {
         "score": score,
         "categories": detected_categories,
-        "hook_indicators": hook_count
+        "emotional_triggers": emotional_triggers,
+        "high_value_count": high_value_count,
+        "is_generic": score < 20
     }
 
 
@@ -202,41 +300,43 @@ async def batch_score_articles(articles: list[dict], use_ai: bool = False) -> li
 def group_articles_by_category(articles: list[dict]) -> dict:
     """
     Group articles by their detected categories.
+    Prioritizes controversial/emotional categories first.
     """
     groups = {
-        "🔥 High Potential": [],
-        "🏛️ Politics & Government": [],
-        "💰 Money & Savings": [],
-        "📈 Rates & Economy": [],
-        "🛡️ Insurance News": [],
-        "🏠 Home & Property": [],
-        "🚗 Auto & Driving": [],
-        "⛈️ Weather & Disasters": [],
-        "💡 Tips & Hacks": [],
-        "📰 Other News": []
+        "🔥 Hot Takes": [],           # Score 70+
+        "🏛️ Political Drama": [],     # Trump, Biden, Congress battles
+        "💸 Money Fears": [],         # Recession, inflation, layoffs
+        "⚠️ Scams & Warnings": [],    # Fraud, alerts, danger
+        "😡 Outrage": [],             # People mad about stuff
+        "🔪 Crime & Safety": [],      # Crime, shootings, arrests
+        "📈 Rates & Economy": [],     # Interest rates, fed, markets
+        "🛡️ Insurance News": [],      # Insurance specific
+        "⛈️ Disasters": [],           # Weather, natural disasters
+        "🏥 Health Scares": [],       # Recalls, outbreaks
+        "📰 Other": []                # Everything else
     }
     
     category_map = {
-        "money_saving": "💰 Money & Savings",
+        "politics_drama": "🏛️ Political Drama",
+        "money_fears": "💸 Money Fears",
+        "scams_warnings": "⚠️ Scams & Warnings",
+        "outrage": "😡 Outrage",
+        "crime_safety": "🔪 Crime & Safety",
         "rates_economy": "📈 Rates & Economy",
         "insurance_news": "🛡️ Insurance News",
-        "home_property": "🏠 Home & Property",
-        "auto_driving": "🚗 Auto & Driving",
-        "weather_disaster": "⛈️ Weather & Disasters",
-        "consumer_tips": "💡 Tips & Hacks",
-        "trending_viral": "🔥 High Potential",
-        "politics_government": "🏛️ Politics & Government"
+        "disasters": "⛈️ Disasters",
+        "health_scares": "🏥 Health Scares",
     }
     
     for article in articles:
         score = article.get("relevance_score", 0)
         categories = article.get("categories", [])
         
-        # High score goes to top
-        if score >= 60:
-            groups["🔥 High Potential"].append(article)
+        # High score goes to Hot Takes
+        if score >= 70:
+            groups["🔥 Hot Takes"].append(article)
         elif categories:
-            # Put in first matching category
+            # Put in first matching category (priority order)
             placed = False
             for cat in categories:
                 if cat in category_map:
@@ -244,9 +344,21 @@ def group_articles_by_category(articles: list[dict]) -> dict:
                     placed = True
                     break
             if not placed:
-                groups["📰 Other News"].append(article)
+                groups["📰 Other"].append(article)
         else:
-            groups["📰 Other News"].append(article)
+            groups["📰 Other"].append(article)
     
-    # Remove empty groups
-    return {k: v for k, v in groups.items() if v}
+    # Remove empty groups and sort by category priority
+    priority_order = [
+        "🔥 Hot Takes", "🏛️ Political Drama", "💸 Money Fears", 
+        "⚠️ Scams & Warnings", "😡 Outrage", "🔪 Crime & Safety",
+        "📈 Rates & Economy", "🛡️ Insurance News", "⛈️ Disasters",
+        "🏥 Health Scares", "📰 Other"
+    ]
+    
+    result = {}
+    for key in priority_order:
+        if key in groups and groups[key]:
+            result[key] = groups[key]
+    
+    return result
