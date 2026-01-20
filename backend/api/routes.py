@@ -305,6 +305,45 @@ async def get_grouped_news(
     }
 
 
+@router.get("/news/search")
+async def search_news(
+    q: str,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Search news articles by keyword.
+    """
+    from backend.services import news_scoring_service
+    
+    if not q or len(q.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Search query must be at least 2 characters")
+    
+    articles = await rss_service.search_articles(db, q.strip(), limit)
+    
+    article_dicts = [
+        {
+            "id": a.id,
+            "title": a.title,
+            "summary": a.summary,
+            "url": a.url,
+            "feed_name": a.feed.name if a.feed else None,
+            "trending_angles": a.trending_angles,
+            "published_at": a.published_at.isoformat() if a.published_at else None
+        }
+        for a in articles
+    ]
+    
+    # Score the search results
+    scored = await news_scoring_service.batch_score_articles(article_dicts, use_ai=False)
+    
+    return {
+        "query": q,
+        "results": scored,
+        "count": len(scored)
+    }
+
+
 @router.post("/news/ai-score")
 async def ai_score_news(
     limit: int = 20,

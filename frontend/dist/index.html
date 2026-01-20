@@ -116,6 +116,10 @@
             newsMinScore: 30,
             newsLoading: false,
             expandedGroups: {},  // Track which groups are expanded
+            // News search
+            newsSearchQuery: '',
+            newsSearchResults: [],
+            newsSearching: false,
             // Niche management
             showAddNiche: false,
             nicheAdding: false
@@ -221,6 +225,50 @@
             if (score >= 50) return 'bg-neon-amber/20';
             if (score >= 30) return 'bg-electric/20';
             return 'bg-slate-800';
+        }
+
+        async function searchNews(query) {
+            if (!query || query.length < 2) {
+                state.newsSearchResults = [];
+                state.newsSearchQuery = '';
+                render();
+                return;
+            }
+            
+            state.newsSearchQuery = query;
+            state.newsSearching = true;
+            render();
+            
+            try {
+                const result = await api(`/news/search?q=${encodeURIComponent(query)}&limit=100`);
+                state.newsSearchResults = result.results || [];
+            } catch (err) {
+                console.error('Search failed:', err);
+                state.newsSearchResults = [];
+            }
+            
+            state.newsSearching = false;
+            render();
+        }
+
+        function clearNewsSearch() {
+            state.newsSearchQuery = '';
+            state.newsSearchResults = [];
+            document.getElementById('news-search-input').value = '';
+            render();
+        }
+
+        // Debounce for search
+        let searchTimeout;
+        function handleNewsSearchInput(value) {
+            clearTimeout(searchTimeout);
+            if (!value || value.length < 2) {
+                state.newsSearchResults = [];
+                state.newsSearchQuery = '';
+                render();
+                return;
+            }
+            searchTimeout = setTimeout(() => searchNews(value), 300);
         }
 
         async function uploadAd(data) {
@@ -531,6 +579,7 @@
         function renderNews() {
             const filteredArticles = state.articles.filter(a => (a.relevance_score || 0) >= state.newsMinScore);
             const topArticles = state.articles.filter(a => (a.relevance_score || 0) >= 60);
+            const isSearching = state.newsSearchQuery.length >= 2;
             
             return `
                 <div class="space-y-6">
@@ -541,44 +590,99 @@
                             <p class="text-sm text-slate-500 mt-1">Articles scored by copywriting potential</p>
                         </div>
                         <div class="flex items-center gap-3">
-                            <button onclick="fetchNews()" ${state.newsLoading ? 'disabled' : ''} class="flex items-center gap-2 px-4 py-2 rounded-lg bg-electric text-white hover:bg-electric-light transition-colors disabled:opacity-50">
+                            <button onclick="fetchNews()" ${state.newsLoading ? 'disabled' : ''} class="flex items-center gap-2 px-4 py-2 rounded-xl bg-electric text-white hover:bg-electric-light transition-colors disabled:opacity-50">
                                 <i data-lucide="${state.newsLoading ? 'loader-2' : 'refresh-cw'}" class="w-4 h-4 ${state.newsLoading ? 'animate-spin' : ''}"></i>
                                 ${state.newsLoading ? 'Fetching...' : 'Fetch Latest'}
                             </button>
                         </div>
                     </div>
 
-                    <!-- View Tabs & Controls -->
+                    <!-- Search Bar -->
                     <div class="glass rounded-xl p-4">
-                        <div class="flex items-center justify-between flex-wrap gap-4">
-                            <div class="flex gap-1 p-1 rounded-lg bg-slate-800/50">
-                                <button onclick="setNewsView('grouped')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'grouped' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
-                                    <i data-lucide="layout-grid" class="w-4 h-4 inline mr-1"></i>By Category
+                        <div class="relative">
+                            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500"></i>
+                            <input 
+                                type="text" 
+                                id="news-search-input"
+                                placeholder="Search articles... (e.g., trump, shutdown, rates, inflation, hurricane)" 
+                                value="${state.newsSearchQuery}"
+                                oninput="handleNewsSearchInput(this.value)"
+                                class="w-full pl-12 pr-12 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:border-electric focus:outline-none"
+                            >
+                            ${state.newsSearchQuery ? `
+                                <button onclick="clearNewsSearch()" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                                    <i data-lucide="x" class="w-5 h-5"></i>
                                 </button>
-                                <button onclick="setNewsView('top')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'top' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
-                                    <i data-lucide="flame" class="w-4 h-4 inline mr-1"></i>Top Picks (${topArticles.length})
-                                </button>
-                                <button onclick="setNewsView('flat')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'flat' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
-                                    <i data-lucide="list" class="w-4 h-4 inline mr-1"></i>All (${state.articles.length})
-                                </button>
-                            </div>
-                            
-                            ${state.newsView === 'flat' ? `
-                                <div class="flex items-center gap-3">
-                                    <label class="text-sm text-slate-400">Min Score:</label>
-                                    <input type="range" min="0" max="80" value="${state.newsMinScore}" onchange="setNewsMinScore(this.value)" class="w-32 accent-electric">
-                                    <span class="text-sm font-mono ${getScoreColor(state.newsMinScore)}">${state.newsMinScore}+</span>
-                                </div>
-                            ` : ''}
-                            
-                            ${state.newsView === 'grouped' ? `
-                                <div class="flex gap-2">
-                                    <button onclick="expandAllGroups()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600">Expand All</button>
-                                    <button onclick="collapseAllGroups()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600">Collapse All</button>
-                                </div>
                             ` : ''}
                         </div>
+                        ${state.newsSearching ? `
+                            <div class="flex items-center gap-2 mt-3 text-sm text-slate-400">
+                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Searching...
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Quick Search Tags -->
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <span class="text-xs text-slate-500">Quick:</span>
+                            ${['trump', 'shutdown', 'rates', 'inflation', 'insurance', 'mortgage', 'recession', 'hurricane', 'scam', 'warning'].map(tag => `
+                                <button onclick="searchNews('${tag}')" class="px-2 py-1 text-xs rounded-lg ${state.newsSearchQuery === tag ? 'bg-electric text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'} transition-colors">${tag}</button>
+                            `).join('')}
+                        </div>
                     </div>
+
+                    ${isSearching ? `
+                        <!-- Search Results -->
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm text-slate-400">
+                                    <span class="text-white font-medium">${state.newsSearchResults.length}</span> results for "<span class="text-electric">${state.newsSearchQuery}</span>"
+                                </p>
+                                <button onclick="clearNewsSearch()" class="text-sm text-slate-500 hover:text-white">Clear search</button>
+                            </div>
+                            ${state.newsSearchResults.length === 0 && !state.newsSearching ? `
+                                <div class="glass rounded-xl p-8 text-center">
+                                    <i data-lucide="search-x" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i>
+                                    <p class="text-slate-400">No articles found for "${state.newsSearchQuery}"</p>
+                                    <p class="text-sm text-slate-500 mt-1">Try a different search term or fetch more news</p>
+                                </div>
+                            ` : state.newsSearchResults.map(a => `
+                                <div class="glass rounded-xl p-4 hover:border-electric/30 transition-all">
+                                    ${renderNewsArticle(a, true)}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <!-- View Tabs & Controls -->
+                        <div class="glass rounded-xl p-4">
+                            <div class="flex items-center justify-between flex-wrap gap-4">
+                                <div class="flex gap-1 p-1 rounded-lg bg-slate-800/50">
+                                    <button onclick="setNewsView('grouped')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'grouped' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
+                                        <i data-lucide="layout-grid" class="w-4 h-4 inline mr-1"></i>By Category
+                                    </button>
+                                    <button onclick="setNewsView('top')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'top' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
+                                        <i data-lucide="flame" class="w-4 h-4 inline mr-1"></i>Top Picks (${topArticles.length})
+                                    </button>
+                                    <button onclick="setNewsView('flat')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'flat' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
+                                        <i data-lucide="list" class="w-4 h-4 inline mr-1"></i>All (${state.articles.length})
+                                    </button>
+                                </div>
+                                
+                                ${state.newsView === 'flat' ? `
+                                    <div class="flex items-center gap-3">
+                                        <label class="text-sm text-slate-400">Min Score:</label>
+                                        <input type="range" min="0" max="80" value="${state.newsMinScore}" onchange="setNewsMinScore(this.value)" class="w-32 accent-electric">
+                                        <span class="text-sm font-mono ${getScoreColor(state.newsMinScore)}">${state.newsMinScore}+</span>
+                                    </div>
+                                ` : ''}
+                                
+                                ${state.newsView === 'grouped' ? `
+                                    <div class="flex gap-2">
+                                        <button onclick="expandAllGroups()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600">Expand All</button>
+                                        <button onclick="collapseAllGroups()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600">Collapse All</button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
 
                     <!-- Score Legend -->
                     <div class="flex items-center gap-6 text-xs text-slate-500">
@@ -596,6 +700,7 @@
                             <p class="text-slate-500 text-sm mt-2">Click "Fetch Latest" to pull in news from your RSS feeds</p>
                         </div>
                     ` : state.newsView === 'grouped' ? renderGroupedNews() : state.newsView === 'top' ? renderTopNews() : renderFlatNews(filteredArticles)}
+                    `}
                 </div>
             `;
         }
