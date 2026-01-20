@@ -87,6 +87,27 @@ async def chat_completion(
             system += "\n\n📰 RECENT NEWS ANGLES:"
             for news in context["recent_news"][:3]:
                 system += f"\n- {news}"
+        
+        # Include referenced ads (user specifically attached these)
+        if context.get("referenced_ads"):
+            system += "\n\n📎 USER HAS ATTACHED THE FOLLOWING WINNING ADS FOR REFERENCE:"
+            for ad in context["referenced_ads"]:
+                system += f"\n\n--- AD: {ad['title']} (ID: {ad['id']}) ---"
+                system += f"\n{ad['content']}"
+                system += "\n--- END AD ---"
+            system += "\n\nUse these ads as style/format references when the user asks. Analyze their patterns and apply similar techniques."
+        
+        # Include referenced articles (user specifically attached these)
+        if context.get("referenced_articles"):
+            system += "\n\n📎 USER HAS ATTACHED THE FOLLOWING NEWS ARTICLES FOR REFERENCE:"
+            for article in context["referenced_articles"]:
+                system += f"\n\n--- ARTICLE: {article['title']} (ID: {article['id']}) ---"
+                if article.get('summary'):
+                    system += f"\nSummary: {article['summary']}"
+                if article.get('trending_angles'):
+                    system += f"\nAngles: {', '.join(article['trending_angles'])}"
+                system += "\n--- END ARTICLE ---"
+            system += "\n\nUse these articles as news angles/hooks when the user asks. Tie current events to the copy."
     
     # Use Anthropic (Claude) if configured, otherwise OpenAI
     if settings.ai_provider == "anthropic" and anthropic_client:

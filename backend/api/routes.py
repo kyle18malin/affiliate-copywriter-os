@@ -108,6 +108,9 @@ class ChatRequest(BaseModel):
     message: str
     conversation_id: Optional[str] = None
     niche_id: Optional[int] = None
+    # References to include in context
+    ad_ids: Optional[list[int]] = None  # Reference specific winning ads
+    article_ids: Optional[list[int]] = None  # Reference specific news articles
 
 
 class ScriptRequest(BaseModel):
@@ -115,6 +118,9 @@ class ScriptRequest(BaseModel):
     niche_id: int
     topic: str
     additional_instructions: Optional[str] = None
+    # References to include in context
+    ad_ids: Optional[list[int]] = None
+    article_ids: Optional[list[int]] = None
 
 
 # ============== Niche Routes ==============
@@ -460,8 +466,11 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     """
     Send a message to the AI assistant and get a response.
     Maintains conversation history for context.
+    Can reference specific ads and articles for context.
     """
     import uuid
+    from sqlalchemy import select
+    from backend.models import Ad, NewsArticle
     
     # Get or create conversation
     conv_id = request.conversation_id or str(uuid.uuid4())
@@ -487,10 +496,53 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     if articles:
         context["recent_news"] = [a.title for a in articles]
     
+    # Fetch referenced ads if provided
+    referenced_ads = []
+    if request.ad_ids:
+        for ad_id in request.ad_ids[:5]:  # Limit to 5 ads
+            result = await db.execute(select(Ad).where(Ad.id == ad_id))
+            ad = result.scalar_one_or_none()
+            if ad:
+                referenced_ads.append({
+                    "id": ad.id,
+                    "title": ad.title or f"Ad #{ad.id}",
+                    "content": ad.content
+                })
+    
+    if referenced_ads:
+        context["referenced_ads"] = referenced_ads
+    
+    # Fetch referenced articles if provided
+    referenced_articles = []
+    if request.article_ids:
+        for article_id in request.article_ids[:5]:  # Limit to 5 articles
+            result = await db.execute(select(NewsArticle).where(NewsArticle.id == article_id))
+            article = result.scalar_one_or_none()
+            if article:
+                referenced_articles.append({
+                    "id": article.id,
+                    "title": article.title,
+                    "summary": article.summary or "",
+                    "trending_angles": article.trending_angles
+                })
+    
+    if referenced_articles:
+        context["referenced_articles"] = referenced_articles
+    
+    # Build the user message with reference indicators
+    user_message = request.message
+    if referenced_ads or referenced_articles:
+        refs = []
+        if referenced_ads:
+            refs.append(f"{len(referenced_ads)} ad(s) attached")
+        if referenced_articles:
+            refs.append(f"{len(referenced_articles)} article(s) attached")
+        user_message = f"[📎 {', '.join(refs)}]\n\n{request.message}"
+    
     # Add user message to history
     conversations[conv_id].append({
         "role": "user",
-        "content": request.message
+        "content": user_message
     })
     
     # Get AI response
@@ -509,7 +561,9 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
         return {
             "conversation_id": conv_id,
             "response": response,
-            "message_count": len(conversations[conv_id])
+            "message_count": len(conversations[conv_id]),
+            "referenced_ads": len(referenced_ads),
+            "referenced_articles": len(referenced_articles)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -519,7 +573,11 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
 async def generate_script(request: ScriptRequest, db: AsyncSession = Depends(get_db)):
     """
     Generate a full script (VSL, UGC, native ad, etc.)
+    Can reference specific ads and articles for style/angle.
     """
+    from sqlalchemy import select
+    from backend.models import Ad, NewsArticle
+    
     # Get niche
     niche = await niche_service.get_niche_by_id(db, request.niche_id)
     if not niche:
@@ -535,6 +593,37 @@ async def generate_script(request: ScriptRequest, db: AsyncSession = Depends(get
     articles = await rss_service.get_recent_articles(db, limit=5)
     if articles:
         context["recent_news"] = [a.title for a in articles]
+    
+    # Fetch referenced ads if provided
+    if request.ad_ids:
+        referenced_ads = []
+        for ad_id in request.ad_ids[:5]:
+            result = await db.execute(select(Ad).where(Ad.id == ad_id))
+            ad = result.scalar_one_or_none()
+            if ad:
+                referenced_ads.append({
+                    "id": ad.id,
+                    "title": ad.title or f"Ad #{ad.id}",
+                    "content": ad.content
+                })
+        if referenced_ads:
+            context["referenced_ads"] = referenced_ads
+    
+    # Fetch referenced articles if provided
+    if request.article_ids:
+        referenced_articles = []
+        for article_id in request.article_ids[:5]:
+            result = await db.execute(select(NewsArticle).where(NewsArticle.id == article_id))
+            article = result.scalar_one_or_none()
+            if article:
+                referenced_articles.append({
+                    "id": article.id,
+                    "title": article.title,
+                    "summary": article.summary or "",
+                    "trending_angles": article.trending_angles
+                })
+        if referenced_articles:
+            context["referenced_articles"] = referenced_articles
     
     try:
         script = await chat_service.generate_script(
