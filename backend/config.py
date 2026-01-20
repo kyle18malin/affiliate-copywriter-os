@@ -4,6 +4,15 @@ Affiliate Copywriter OS - Configuration
 from pydantic_settings import BaseSettings
 from typing import Literal
 import os
+from pathlib import Path
+
+
+# Ensure data directory exists for persistent storage
+DATA_DIR = Path(os.environ.get("DATA_DIR", "./data"))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Default database path in data directory
+DEFAULT_DB_PATH = f"sqlite+aiosqlite:///{DATA_DIR}/affiliate_copywriter.db"
 
 
 class Settings(BaseSettings):
@@ -12,8 +21,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     ai_provider: Literal["openai", "anthropic"] = "anthropic"
     
-    # Database
-    database_url: str = "sqlite+aiosqlite:///./affiliate_copywriter.db"
+    # Database - uses DATA_DIR for persistence
+    database_url: str = DEFAULT_DB_PATH
     
     # Server
     host: str = "0.0.0.0"

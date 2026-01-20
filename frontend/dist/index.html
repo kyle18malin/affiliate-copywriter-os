@@ -574,17 +574,17 @@
                     </div>
 
                     <!-- Chat Messages -->
-                    <div id="chat-container" class="glass rounded-xl overflow-hidden" style="height: calc(100vh - ${hasRefs ? '440px' : '380px'}); min-height: 350px;">
-                        <div id="chat-messages" class="p-4 space-y-4 overflow-y-auto" style="height: calc(100% - ${hasRefs ? '140px' : '80px'});">
+                    <div id="chat-container" class="glass rounded-xl overflow-hidden flex flex-col" style="height: 500px; max-height: calc(100vh - 320px);">
+                        <!-- Messages Area - Scrollable -->
+                        <div id="chat-messages" class="flex-1 p-4 space-y-4 overflow-y-auto">
                             ${state.chatMessages.length === 0 ? `
-                                <div class="text-center py-12">
-                                    <i data-lucide="message-square" class="w-16 h-16 text-slate-700 mx-auto mb-4"></i>
-                                    <h3 class="text-lg font-semibold text-slate-400 mb-2">Start a conversation</h3>
-                                    <p class="text-sm text-slate-600 max-w-md mx-auto">Ask me to write scripts, generate hooks, refine copy, or brainstorm ideas. I have context from your winning ads and latest news.</p>
-                                    <div class="mt-6 space-y-2 text-sm text-slate-500">
-                                        <p class="cursor-pointer hover:text-electric" onclick="setPrompt('Write a 60-second UGC script for auto insurance targeting young drivers')">💡 "Write a 60-second UGC script for auto insurance targeting young drivers"</p>
-                                        <p class="cursor-pointer hover:text-electric" onclick="setPrompt('Give me 5 hooks that create urgency around refinancing')">💡 "Give me 5 hooks that create urgency around refinancing"</p>
-                                        <p class="cursor-pointer hover:text-electric" onclick="setPrompt('Help me improve this hook: [paste your hook]')">💡 "Help me improve this hook: [paste your hook]"</p>
+                                <div class="text-center py-8">
+                                    <i data-lucide="message-square" class="w-12 h-12 text-slate-700 mx-auto mb-3"></i>
+                                    <h3 class="text-base font-semibold text-slate-400 mb-2">Start a conversation</h3>
+                                    <p class="text-sm text-slate-600 max-w-md mx-auto">Ask me to write scripts, generate hooks, refine copy, or brainstorm ideas.</p>
+                                    <div class="mt-4 space-y-2 text-sm text-slate-500">
+                                        <p class="cursor-pointer hover:text-electric" onclick="setPrompt('Write a 60-second UGC script for auto insurance')">💡 "Write a 60-second UGC script for auto insurance"</p>
+                                        <p class="cursor-pointer hover:text-electric" onclick="setPrompt('Give me 5 hooks about refinancing')">💡 "Give me 5 hooks about refinancing"</p>
                                     </div>
                                 </div>
                             ` : state.chatMessages.map((msg, i) => `
@@ -613,19 +613,19 @@
                         
                         <!-- Selected References Display -->
                         ${hasRefs ? `
-                            <div class="px-4 py-2 border-t border-slate-800 bg-slate-900/50">
+                            <div class="px-4 py-2 border-t border-slate-800 bg-slate-900/50 flex-shrink-0">
                                 <div class="flex flex-wrap gap-2">
                                     ${state.selectedAdRefs.map(ref => `
                                         <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-neon-green/20 text-neon-green text-xs">
                                             <i data-lucide="file-text" class="w-3 h-3"></i>
-                                            ${ref.title.substring(0, 25)}${ref.title.length > 25 ? '...' : ''}
+                                            ${ref.title.substring(0, 20)}${ref.title.length > 20 ? '...' : ''}
                                             <button onclick="removeAdRef(${ref.id})" class="ml-1 hover:text-white">×</button>
                                         </span>
                                     `).join('')}
                                     ${state.selectedArticleRefs.map(ref => `
                                         <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-neon-amber/20 text-neon-amber text-xs">
                                             <i data-lucide="newspaper" class="w-3 h-3"></i>
-                                            ${ref.title.substring(0, 25)}${ref.title.length > 25 ? '...' : ''}
+                                            ${ref.title.substring(0, 20)}${ref.title.length > 20 ? '...' : ''}
                                             <button onclick="removeArticleRef(${ref.id})" class="ml-1 hover:text-white">×</button>
                                         </span>
                                     `).join('')}
@@ -634,33 +634,34 @@
                             </div>
                         ` : ''}
                         
-                        <!-- Input Area -->
-                        <div class="p-4 border-t border-slate-800 bg-obsidian">
+                        <!-- Input Area - Fixed at bottom -->
+                        <div class="p-3 border-t border-slate-800 bg-obsidian flex-shrink-0">
                             <div class="flex gap-2 mb-2">
-                                <button onclick="showRefPicker('ads')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg ${state.selectedAdRefs.length > 0 ? 'bg-neon-green/20 text-neon-green' : 'bg-slate-800 text-slate-400 hover:text-white'} transition-colors text-xs">
+                                <button onclick="showRefPicker('ads')" class="flex items-center gap-1 px-2 py-1 rounded-lg ${state.selectedAdRefs.length > 0 ? 'bg-neon-green/20 text-neon-green' : 'bg-slate-800 text-slate-400 hover:text-white'} transition-colors text-xs">
                                     <i data-lucide="paperclip" class="w-3 h-3"></i>
-                                    Attach Ad ${state.selectedAdRefs.length > 0 ? `(${state.selectedAdRefs.length})` : ''}
+                                    Ad ${state.selectedAdRefs.length > 0 ? `(${state.selectedAdRefs.length})` : ''}
                                 </button>
-                                <button onclick="showRefPicker('articles')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg ${state.selectedArticleRefs.length > 0 ? 'bg-neon-amber/20 text-neon-amber' : 'bg-slate-800 text-slate-400 hover:text-white'} transition-colors text-xs">
+                                <button onclick="showRefPicker('articles')" class="flex items-center gap-1 px-2 py-1 rounded-lg ${state.selectedArticleRefs.length > 0 ? 'bg-neon-amber/20 text-neon-amber' : 'bg-slate-800 text-slate-400 hover:text-white'} transition-colors text-xs">
                                     <i data-lucide="newspaper" class="w-3 h-3"></i>
-                                    Attach News ${state.selectedArticleRefs.length > 0 ? `(${state.selectedArticleRefs.length})` : ''}
+                                    News ${state.selectedArticleRefs.length > 0 ? `(${state.selectedArticleRefs.length})` : ''}
                                 </button>
                             </div>
-                            <div class="flex gap-3">
+                            <div class="flex gap-2">
                                 <textarea 
                                     id="chat-input" 
-                                    placeholder="${hasRefs ? 'Reference the attached content...' : 'Ask me to write scripts, generate hooks, give feedback...'}" 
-                                    class="flex-1 px-4 py-3 rounded-xl bg-midnight border border-slate-800 text-white focus:border-electric focus:outline-none resize-none"
+                                    placeholder="${hasRefs ? 'Reference the attached content...' : 'Ask me anything...'}" 
+                                    class="flex-1 px-3 py-2 rounded-xl bg-midnight border border-slate-800 text-white text-sm focus:border-electric focus:outline-none resize-none"
                                     rows="1"
+                                    style="min-height: 40px; max-height: 120px;"
                                     onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); }"
-                                    oninput="this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 150) + 'px';"
+                                    oninput="this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120) + 'px';"
                                 ></textarea>
                                 <button 
                                     onclick="sendChatMessage()" 
                                     ${state.chatLoading ? 'disabled' : ''} 
-                                    class="px-4 py-3 rounded-xl bg-electric text-white hover:bg-electric-light transition-colors disabled:opacity-50"
+                                    class="px-3 py-2 rounded-xl bg-electric text-white hover:bg-electric-light transition-colors disabled:opacity-50 self-end"
                                 >
-                                    <i data-lucide="send" class="w-5 h-5"></i>
+                                    <i data-lucide="send" class="w-4 h-4"></i>
                                 </button>
                             </div>
                         </div>
