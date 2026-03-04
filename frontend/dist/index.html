@@ -120,6 +120,8 @@
             newsSearchQuery: '',
             newsSearchResults: [],
             newsSearching: false,
+            // News category selection
+            selectedNewsCategory: null,
             // Niche management
             showAddNiche: false,
             nicheAdding: false
@@ -577,9 +579,21 @@
         }
 
         function renderNews() {
-            const filteredArticles = state.articles.filter(a => (a.relevance_score || 0) >= state.newsMinScore);
-            const topArticles = state.articles.filter(a => (a.relevance_score || 0) >= 60);
+            // Only show articles with score >= 40 (filter out the garbage)
+            const MIN_SCORE = 40;
+            const goodArticles = state.articles.filter(a => (a.relevance_score || 0) >= MIN_SCORE);
+            const topArticles = state.articles.filter(a => (a.relevance_score || 0) >= 70);
             const isSearching = state.newsSearchQuery.length >= 2;
+            const selectedCategory = state.selectedNewsCategory;
+            
+            // Get category counts (only counting good articles)
+            const categoryCounts = {};
+            Object.keys(state.newsGroups || {}).forEach(cat => {
+                const goodInCat = (state.newsGroups[cat] || []).filter(a => (a.relevance_score || 0) >= MIN_SCORE);
+                if (goodInCat.length > 0) {
+                    categoryCounts[cat] = goodInCat.length;
+                }
+            });
             
             return `
                 <div class="space-y-6">
@@ -587,24 +601,25 @@
                     <div class="flex items-center justify-between flex-wrap gap-4">
                         <div>
                             <h2 class="text-2xl font-display font-bold">News Intelligence</h2>
-                            <p class="text-sm text-slate-500 mt-1">Articles scored by copywriting potential</p>
+                            <p class="text-sm text-slate-500 mt-1">
+                                ${goodArticles.length} high-quality articles • ${topArticles.length} top picks
+                                <span class="text-slate-600 ml-2">(filtering score 40+)</span>
+                            </p>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <button onclick="fetchNews()" ${state.newsLoading ? 'disabled' : ''} class="flex items-center gap-2 px-4 py-2 rounded-xl bg-electric text-white hover:bg-electric-light transition-colors disabled:opacity-50">
-                                <i data-lucide="${state.newsLoading ? 'loader-2' : 'refresh-cw'}" class="w-4 h-4 ${state.newsLoading ? 'animate-spin' : ''}"></i>
-                                ${state.newsLoading ? 'Fetching...' : 'Fetch Latest'}
-                            </button>
-                        </div>
+                        <button onclick="fetchNews()" ${state.newsLoading ? 'disabled' : ''} class="flex items-center gap-2 px-4 py-2 rounded-xl bg-electric text-white hover:bg-electric-light transition-colors disabled:opacity-50">
+                            <i data-lucide="${state.newsLoading ? 'loader-2' : 'refresh-cw'}" class="w-4 h-4 ${state.newsLoading ? 'animate-spin' : ''}"></i>
+                            ${state.newsLoading ? 'Fetching...' : 'Fetch Latest'}
+                        </button>
                     </div>
 
-                    <!-- Search Bar -->
+                    <!-- Quick Search -->
                     <div class="glass rounded-xl p-4">
                         <div class="relative">
                             <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500"></i>
                             <input 
                                 type="text" 
                                 id="news-search-input"
-                                placeholder="Search articles... (e.g., trump, shutdown, rates, inflation, hurricane)" 
+                                placeholder="Search for specific topics..." 
                                 value="${state.newsSearchQuery}"
                                 oninput="handleNewsSearchInput(this.value)"
                                 class="w-full pl-12 pr-12 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:border-electric focus:outline-none"
@@ -615,19 +630,6 @@
                                 </button>
                             ` : ''}
                         </div>
-                        ${state.newsSearching ? `
-                            <div class="flex items-center gap-2 mt-3 text-sm text-slate-400">
-                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Searching...
-                            </div>
-                        ` : ''}
-                        
-                        <!-- Quick Search Tags -->
-                        <div class="flex flex-wrap gap-2 mt-3">
-                            <span class="text-xs text-slate-500">Quick:</span>
-                            ${['trump', 'shutdown', 'rates', 'inflation', 'insurance', 'mortgage', 'recession', 'hurricane', 'scam', 'warning'].map(tag => `
-                                <button onclick="searchNews('${tag}')" class="px-2 py-1 text-xs rounded-lg ${state.newsSearchQuery === tag ? 'bg-electric text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'} transition-colors">${tag}</button>
-                            `).join('')}
-                        </div>
                     </div>
 
                     ${isSearching ? `
@@ -635,215 +637,138 @@
                         <div class="space-y-3">
                             <div class="flex items-center justify-between">
                                 <p class="text-sm text-slate-400">
-                                    <span class="text-white font-medium">${state.newsSearchResults.length}</span> results for "<span class="text-electric">${state.newsSearchQuery}</span>"
+                                    <span class="text-white font-medium">${state.newsSearchResults.filter(a => a.relevance_score >= MIN_SCORE).length}</span> results for "<span class="text-electric">${state.newsSearchQuery}</span>"
                                 </p>
-                                <button onclick="clearNewsSearch()" class="text-sm text-slate-500 hover:text-white">Clear search</button>
+                                <button onclick="clearNewsSearch()" class="text-sm text-slate-500 hover:text-white">Clear</button>
                             </div>
-                            ${state.newsSearchResults.length === 0 && !state.newsSearching ? `
+                            ${state.newsSearchResults.filter(a => a.relevance_score >= MIN_SCORE).length === 0 && !state.newsSearching ? `
                                 <div class="glass rounded-xl p-8 text-center">
-                                    <i data-lucide="search-x" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i>
-                                    <p class="text-slate-400">No articles found for "${state.newsSearchQuery}"</p>
-                                    <p class="text-sm text-slate-500 mt-1">Try a different search term or fetch more news</p>
+                                    <p class="text-slate-400">No high-quality articles found for "${state.newsSearchQuery}"</p>
                                 </div>
-                            ` : state.newsSearchResults.map(a => `
-                                <div class="glass rounded-xl p-4 hover:border-electric/30 transition-all">
-                                    ${renderNewsArticle(a, true)}
-                                </div>
-                            `).join('')}
+                            ` : state.newsSearchResults.filter(a => a.relevance_score >= MIN_SCORE).slice(0, 20).map(a => renderCompactArticle(a)).join('')}
                         </div>
                     ` : `
-                        <!-- View Tabs & Controls -->
-                        <div class="glass rounded-xl p-4">
-                            <div class="flex items-center justify-between flex-wrap gap-4">
-                                <div class="flex gap-1 p-1 rounded-lg bg-slate-800/50">
-                                    <button onclick="setNewsView('grouped')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'grouped' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
-                                        <i data-lucide="layout-grid" class="w-4 h-4 inline mr-1"></i>By Category
-                                    </button>
-                                    <button onclick="setNewsView('top')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'top' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
-                                        <i data-lucide="flame" class="w-4 h-4 inline mr-1"></i>Top Picks (${topArticles.length})
-                                    </button>
-                                    <button onclick="setNewsView('flat')" class="px-4 py-2 rounded-lg text-sm transition-colors ${state.newsView === 'flat' ? 'bg-electric text-white' : 'text-slate-400 hover:text-white'}">
-                                        <i data-lucide="list" class="w-4 h-4 inline mr-1"></i>All (${state.articles.length})
-                                    </button>
-                                </div>
-                                
-                                ${state.newsView === 'flat' ? `
-                                    <div class="flex items-center gap-3">
-                                        <label class="text-sm text-slate-400">Min Score:</label>
-                                        <input type="range" min="0" max="80" value="${state.newsMinScore}" onchange="setNewsMinScore(this.value)" class="w-32 accent-electric">
-                                        <span class="text-sm font-mono ${getScoreColor(state.newsMinScore)}">${state.newsMinScore}+</span>
-                                    </div>
-                                ` : ''}
-                                
-                                ${state.newsView === 'grouped' ? `
-                                    <div class="flex gap-2">
-                                        <button onclick="expandAllGroups()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600">Expand All</button>
-                                        <button onclick="collapseAllGroups()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600">Collapse All</button>
-                                    </div>
-                                ` : ''}
+                        ${state.articles.length === 0 ? `
+                            <div class="glass rounded-xl p-12 text-center">
+                                <i data-lucide="newspaper" class="w-16 h-16 text-slate-600 mx-auto mb-4"></i>
+                                <p class="text-slate-400 text-lg">No articles yet</p>
+                                <p class="text-slate-500 text-sm mt-2">Click "Fetch Latest" to pull in content</p>
                             </div>
-                        </div>
-
-                    <!-- Score Legend -->
-                    <div class="flex items-center gap-6 text-xs text-slate-500">
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-neon-green"></span> High Potential (70+)</span>
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-neon-amber"></span> Good (50-69)</span>
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-electric"></span> Fair (30-49)</span>
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-600"></span> Low (&lt;30)</span>
-                    </div>
-
-                    <!-- Content based on view -->
-                    ${state.articles.length === 0 ? `
-                        <div class="glass rounded-xl p-12 text-center">
-                            <i data-lucide="newspaper" class="w-16 h-16 text-slate-600 mx-auto mb-4"></i>
-                            <p class="text-slate-400 text-lg">No articles yet</p>
-                            <p class="text-slate-500 text-sm mt-2">Click "Fetch Latest" to pull in news from your RSS feeds</p>
-                        </div>
-                    ` : state.newsView === 'grouped' ? renderGroupedNews() : state.newsView === 'top' ? renderTopNews() : renderFlatNews(filteredArticles)}
+                        ` : selectedCategory ? `
+                            <!-- Category Detail View -->
+                            <div>
+                                <button onclick="clearSelectedCategory()" class="flex items-center gap-2 text-slate-400 hover:text-white mb-4 transition-colors">
+                                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                                    Back to categories
+                                </button>
+                                <div class="glass rounded-xl p-4 mb-4">
+                                    <h3 class="text-xl font-semibold text-white">${selectedCategory}</h3>
+                                    <p class="text-sm text-slate-500 mt-1">${categoryCounts[selectedCategory] || 0} quality articles</p>
+                                </div>
+                                <div class="space-y-2">
+                                    ${(state.newsGroups[selectedCategory] || [])
+                                        .filter(a => (a.relevance_score || 0) >= MIN_SCORE)
+                                        .slice(0, 30)
+                                        .map(a => renderCompactArticle(a)).join('')}
+                                </div>
+                            </div>
+                        ` : `
+                            <!-- Category Grid -->
+                            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                ${Object.keys(categoryCounts).length === 0 ? `
+                                    <div class="col-span-full text-center py-8 text-slate-500">
+                                        No high-quality content found. Try fetching more news.
+                                    </div>
+                                ` : Object.keys(categoryCounts).map(cat => {
+                                    const count = categoryCounts[cat];
+                                    const articles = (state.newsGroups[cat] || []).filter(a => (a.relevance_score || 0) >= MIN_SCORE);
+                                    const topInCat = articles.filter(a => a.relevance_score >= 70).length;
+                                    const avgScore = articles.length > 0 ? Math.round(articles.reduce((sum, a) => sum + (a.relevance_score || 0), 0) / articles.length) : 0;
+                                    const emoji = cat.split(' ')[0];
+                                    const name = cat.split(' ').slice(1).join(' ');
+                                    const preview = articles.slice(0, 2);
+                                    
+                                    return `
+                                        <div onclick="selectNewsCategory('${cat}')" class="glass rounded-xl p-4 cursor-pointer hover:border-electric/30 hover:bg-slate-800/50 transition-all group">
+                                            <div class="flex items-start justify-between mb-3">
+                                                <div class="flex items-center gap-3">
+                                                    <span class="text-2xl">${emoji}</span>
+                                                    <div>
+                                                        <h3 class="font-semibold text-white group-hover:text-electric transition-colors">${name}</h3>
+                                                        <p class="text-xs text-slate-500">${count} articles • avg ${avgScore}</p>
+                                                    </div>
+                                                </div>
+                                                ${topInCat > 0 ? `<span class="px-2 py-1 rounded-full bg-neon-green/20 text-neon-green text-xs">${topInCat} 🔥</span>` : ''}
+                                            </div>
+                                            <div class="space-y-2">
+                                                ${preview.map(a => `
+                                                    <div class="flex items-center gap-2 text-sm">
+                                                        <span class="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-xs font-bold ${getScoreBg(a.relevance_score)} ${getScoreColor(a.relevance_score)}">${a.relevance_score}</span>
+                                                        <span class="text-slate-400 truncate">${a.title.substring(0, 50)}${a.title.length > 50 ? '...' : ''}</span>
+                                                    </div>
+                                                `).join('')}
+                                                ${count > 2 ? `<p class="text-xs text-slate-600 text-center pt-1">+${count - 2} more</p>` : ''}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                            
+                            <!-- Top Picks Summary -->
+                            ${topArticles.length > 0 ? `
+                                <div class="mt-6">
+                                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                        <span>🔥</span> Top Picks (Score 70+)
+                                    </h3>
+                                    <div class="space-y-2">
+                                        ${topArticles.slice(0, 10).map(a => renderCompactArticle(a)).join('')}
+                                        ${topArticles.length > 10 ? `
+                                            <p class="text-center text-sm text-slate-500 py-2">+${topArticles.length - 10} more top picks across categories</p>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        `}
                     `}
                 </div>
             `;
         }
-
-        function renderGroupedNews() {
-            const groups = state.newsGroups;
-            const categories = Object.keys(groups);
-            
-            if (categories.length === 0) {
-                return `<p class="text-slate-500 text-center py-8">No categorized articles found.</p>`;
-            }
-
-            return `
-                <div class="space-y-4">
-                    ${categories.map(category => {
-                        const articles = groups[category] || [];
-                        const isExpanded = state.expandedGroups[category];
-                        const avgScore = articles.length > 0 ? Math.round(articles.reduce((sum, a) => sum + (a.relevance_score || 0), 0) / articles.length) : 0;
-                        
-                        return `
-                            <div class="glass rounded-xl overflow-hidden">
-                                <button onclick="toggleNewsGroup('${category}')" class="w-full flex items-center justify-between p-4 hover:bg-slate-800/50 transition-colors text-left">
-                                    <div class="flex items-center gap-3">
-                                        <span class="text-2xl">${category.split(' ')[0]}</span>
-                                        <div>
-                                            <h3 class="font-semibold text-white">${category.split(' ').slice(1).join(' ')}</h3>
-                                            <p class="text-xs text-slate-500">${articles.length} articles • Avg score: <span class="${getScoreColor(avgScore)}">${avgScore}</span></p>
-                                        </div>
-                                    </div>
-                                    <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-5 h-5 text-slate-400"></i>
-                                </button>
-                                
-                                ${isExpanded ? `
-                                    <div class="border-t border-slate-800 divide-y divide-slate-800/50">
-                                        ${articles.slice(0, 15).map(a => renderNewsArticle(a)).join('')}
-                                        ${articles.length > 15 ? `
-                                            <div class="p-3 text-center text-sm text-slate-500">
-                                                +${articles.length - 15} more articles in this category
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                ` : ''}
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            `;
-        }
-
-        function renderTopNews() {
-            const topArticles = state.articles.filter(a => (a.relevance_score || 0) >= 60);
-            
-            if (topArticles.length === 0) {
-                return `
-                    <div class="glass rounded-xl p-8 text-center">
-                        <i data-lucide="flame" class="w-12 h-12 text-slate-600 mx-auto mb-4"></i>
-                        <p class="text-slate-400">No high-potential articles found.</p>
-                        <p class="text-slate-500 text-sm mt-2">Try fetching more news or lowering your threshold.</p>
-                    </div>
-                `;
-            }
-
-            return `
-                <div class="space-y-3">
-                    <p class="text-sm text-slate-500 mb-4">These articles have the highest copywriting potential (score 60+)</p>
-                    ${topArticles.map(a => `
-                        <div class="glass rounded-xl p-4 hover:border-neon-green/30 border border-transparent transition-all">
-                            ${renderNewsArticle(a, true)}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        function renderFlatNews(articles) {
-            return `
-                <div class="space-y-3">
-                    <p class="text-sm text-slate-500 mb-4">Showing ${articles.length} articles with score ${state.newsMinScore}+</p>
-                    ${articles.map(a => `
-                        <div class="glass rounded-xl p-4 hover:border-electric/30 transition-all">
-                            ${renderNewsArticle(a, true)}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        function renderNewsArticle(a, showDetails = false) {
+        
+        function renderCompactArticle(a) {
             const score = a.relevance_score || 0;
-            const categories = a.categories || [];
-            const hookPotential = a.hook_potential || '';
-            const copyAngle = a.copy_angle || '';
+            const isReddit = a.is_reddit || a.feed_name?.toLowerCase().includes('reddit') || a.url?.includes('reddit.com');
+            const subreddit = a.subreddit || (a.url ? a.url.match(/reddit\.com\/r\/(\w+)/)?.[1] : null);
             
             return `
-                <div class="p-4 flex items-start gap-4">
-                    <!-- Score Badge -->
-                    <div class="flex flex-col items-center gap-1">
-                        <div class="w-12 h-12 rounded-xl ${getScoreBg(score)} flex items-center justify-center">
-                            <span class="text-lg font-bold ${getScoreColor(score)}">${score}</span>
-                        </div>
-                        <span class="text-[10px] text-slate-500 uppercase">Score</span>
+                <div class="glass rounded-xl p-3 hover:border-electric/30 transition-all flex items-center gap-3 group">
+                    <div class="w-10 h-10 rounded-lg ${getScoreBg(score)} flex items-center justify-center flex-shrink-0">
+                        <span class="text-sm font-bold ${getScoreColor(score)}">${score}</span>
                     </div>
-                    
-                    <!-- Content -->
                     <div class="flex-1 min-w-0">
-                        <a href="${a.url}" target="_blank" class="font-medium text-white hover:text-electric transition-colors line-clamp-2 text-base">${a.title}</a>
-                        
-                        <div class="flex items-center gap-3 mt-2 text-xs text-slate-500">
-                            <span class="flex items-center gap-1"><i data-lucide="rss" class="w-3 h-3"></i> ${a.feed_name || 'Unknown'}</span>
-                            ${a.published_at ? `<span>${new Date(a.published_at).toLocaleDateString()}</span>` : ''}
+                        <a href="${a.url}" target="_blank" class="font-medium text-white hover:text-electric transition-colors text-sm line-clamp-1">${a.title}</a>
+                        <div class="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                            ${isReddit ? `<span class="text-orange-400">🤖 ${subreddit ? 'r/' + subreddit : 'Reddit'}</span>` : `<span>${a.feed_name || 'Unknown'}</span>`}
+                            ${(a.emotional_triggers || []).slice(0, 2).map(t => `<span class="text-neon-rose">${t}</span>`).join('')}
                         </div>
-                        
-                        ${categories.length > 0 ? `
-                            <div class="mt-2 flex flex-wrap gap-1">
-                                ${categories.slice(0, 4).map(c => `
-                                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">${c.replace(/_/g, ' ')}</span>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-                        
-                        ${showDetails && (hookPotential || copyAngle) ? `
-                            <div class="mt-3 p-3 rounded-lg bg-slate-800/50 text-sm">
-                                ${hookPotential ? `<p class="text-slate-400"><span class="text-electric">Hook idea:</span> ${hookPotential}</p>` : ''}
-                                ${copyAngle ? `<p class="text-slate-300 mt-1 font-medium">"${copyAngle}"</p>` : ''}
-                            </div>
-                        ` : ''}
-                        
-                        ${a.trending_angles ? `
-                            <div class="mt-3 flex flex-wrap gap-2">
-                                ${a.trending_angles.slice(0,3).map(t => `<span class="text-xs px-2 py-1 rounded-lg bg-electric/10 text-electric-light">${t}</span>`).join('')}
-                            </div>
-                        ` : ''}
                     </div>
-                    
-                    <!-- Actions -->
-                    <div class="flex flex-col gap-2">
-                        <button onclick="analyzeArticle(${a.id})" class="px-3 py-1.5 text-xs rounded-lg bg-electric/10 text-electric hover:bg-electric/20 transition-colors" title="Deep analyze with AI">
-                            <i data-lucide="sparkles" class="w-4 h-4"></i>
-                        </button>
-                    </div>
+                    <button onclick="event.stopPropagation(); analyzeArticle(${a.id})" class="opacity-0 group-hover:opacity-100 p-2 rounded-lg bg-electric/10 text-electric hover:bg-electric/20 transition-all" title="Deep analyze">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    </button>
                 </div>
             `;
         }
+        
+        function selectNewsCategory(category) {
+            state.selectedNewsCategory = category;
+            render();
+        }
+        
+        function clearSelectedCategory() {
+            state.selectedNewsCategory = null;
+            render();
+        }
+
+        // Old functions removed - using renderCompactArticle in the new category-first UI
 
         function renderAds() {
             return `
@@ -971,6 +896,9 @@
         }
 
         function renderFeeds() {
+            const redditFeeds = state.feeds.filter(f => f.name?.toLowerCase().includes('reddit') || f.url?.includes('reddit.com'));
+            const otherFeeds = state.feeds.filter(f => !f.name?.toLowerCase().includes('reddit') && !f.url?.includes('reddit.com'));
+            
             return `
                 <div class="space-y-6">
                     <div class="flex items-center justify-between">
@@ -979,6 +907,8 @@
                             <i data-lucide="plus" class="w-4 h-4"></i> Add Feed
                         </button>
                     </div>
+                    
+                    <!-- Add Feed Form -->
                     <div id="feed-form" class="hidden glass rounded-xl p-6 space-y-4">
                         <div class="grid md:grid-cols-3 gap-4">
                             <div>
@@ -996,24 +926,182 @@
                         </div>
                         <button onclick="handleAddFeed()" class="px-6 py-2 rounded-lg bg-electric text-white font-medium hover:bg-electric-light transition-colors">Add Feed</button>
                     </div>
-                    <div class="grid md:grid-cols-2 gap-3">
-                        ${state.feeds.map(f => `
-                            <div class="glass rounded-xl p-4 flex items-center gap-4">
-                                <div class="w-10 h-10 rounded-lg bg-neon-amber/20 text-neon-amber flex items-center justify-center">
-                                    <i data-lucide="rss" class="w-5 h-5"></i>
+                    
+                    <!-- Reddit Section -->
+                    <div class="glass rounded-xl p-6 border border-orange-500/30">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                                    <span class="text-xl">🤖</span>
                                 </div>
-                                <div class="flex-1 min-w-0">
-                                    <h3 class="font-medium text-white truncate">${f.name}</h3>
-                                    <p class="text-xs text-slate-500 truncate">${f.url}</p>
+                                <div>
+                                    <h3 class="font-semibold text-white">Reddit Integration</h3>
+                                    <p class="text-xs text-slate-500">Goldmine for emotional, upvoted content</p>
                                 </div>
-                                <span class="px-2 py-1 text-xs rounded-full ${f.is_active ? 'bg-neon-green/20 text-neon-green' : 'bg-slate-800 text-slate-500'}">
-                                    ${f.is_active ? 'Active' : 'Inactive'}
-                                </span>
                             </div>
-                        `).join('')}
+                            <span class="px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-medium">${redditFeeds.length} subreddits</span>
+                        </div>
+                        
+                        <!-- Quick Add Subreddit -->
+                        <div class="mb-4 p-4 rounded-xl bg-slate-800/50">
+                            <p class="text-sm text-slate-400 mb-3">Quick add a subreddit:</p>
+                            <div class="flex gap-2">
+                                <div class="flex items-center gap-1 px-3 py-2 rounded-lg bg-midnight border border-slate-700 text-slate-500">
+                                    <span>r/</span>
+                                </div>
+                                <input type="text" id="subreddit-name" class="flex-1 px-4 py-2 rounded-lg bg-midnight border border-slate-700 text-white focus:border-orange-500 focus:outline-none" placeholder="personalfinance, news, politics...">
+                                <select id="subreddit-sort" class="px-3 py-2 rounded-lg bg-midnight border border-slate-700 text-white">
+                                    <option value="top">Top (day)</option>
+                                    <option value="hot">Hot</option>
+                                    <option value="new">New</option>
+                                    <option value="rising">Rising</option>
+                                </select>
+                                <button onclick="addSubreddit()" class="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors font-medium">
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Recommended Subreddits -->
+                        <div class="mb-4 space-y-3">
+                            <div>
+                                <p class="text-xs text-orange-400 mb-2 font-medium">🔥 VIRAL / FREAKOUT (highest engagement):</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${['PublicFreakout', 'facepalm', 'Whatcouldgowrong', 'IdiotsInCars', 'instant_regret', 'Wellthatsucks', 'CrazyFuckingVideos', 'TikTokCringe'].map(sub => `
+                                        <button onclick="quickAddSubreddit('${sub}')" class="px-2 py-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-xs">
+                                            r/${sub}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs text-green-400 mb-2 font-medium">⚖️ JUSTICE / REVENGE (satisfying payoff):</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${['JusticeServed', 'MaliciousCompliance', 'pettyrevenge', 'ProRevenge', 'ChoosingBeggars', 'FuckYouKaren', 'byebyejob'].map(sub => `
+                                        <button onclick="quickAddSubreddit('${sub}')" class="px-2 py-1 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors text-xs">
+                                            r/${sub}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs text-purple-400 mb-2 font-medium">😡 CORPORATE HATE / RAGE:</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${['antiwork', 'LateStageCapitalism', 'recruitinghell', 'assholedesign', 'mildlyinfuriating', 'iamatotalpieceofshit', 'trashy'].map(sub => `
+                                        <button onclick="quickAddSubreddit('${sub}')" class="px-2 py-1 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors text-xs">
+                                            r/${sub}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs text-yellow-400 mb-2 font-medium">💸 MONEY / CRISIS (fear-based):</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${['wallstreetbets', 'povertyfinance', 'personalfinance', 'StudentLoans', 'REBubble', 'Scams', 'Insurance'].map(sub => `
+                                        <button onclick="quickAddSubreddit('${sub}')" class="px-2 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition-colors text-xs">
+                                            r/${sub}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs text-blue-400 mb-2 font-medium">📖 STORIES / CONFESSIONS (emotional hooks):</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${['tifu', 'confessions', 'TrueOffMyChest', 'AmItheAsshole', 'unpopularopinion', 'BestofRedditorUpdates', 'legaladvice'].map(sub => `
+                                        <button onclick="quickAddSubreddit('${sub}')" class="px-2 py-1 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors text-xs">
+                                            r/${sub}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-400 mb-2 font-medium">📰 NEWS / CONTROVERSY:</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${['news', 'worldnews', 'politics', 'Conservative', 'nottheonion', 'SubredditDrama', 'OutOfTheLoop'].map(sub => `
+                                        <button onclick="quickAddSubreddit('${sub}')" class="px-2 py-1 rounded-lg bg-slate-700 text-slate-400 hover:bg-slate-600 transition-colors text-xs">
+                                            r/${sub}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Current Reddit Feeds -->
+                        ${redditFeeds.length > 0 ? `
+                            <div class="grid md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                                ${redditFeeds.map(f => `
+                                    <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
+                                        <span class="text-orange-500">🤖</span>
+                                        <span class="text-sm text-white truncate flex-1">${f.name.replace('Reddit - ', '')}</span>
+                                        <span class="w-2 h-2 rounded-full ${f.is_active ? 'bg-neon-green' : 'bg-slate-600'}"></span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <p class="text-center text-slate-500 py-4">No subreddits added yet. Click a recommendation above!</p>
+                        `}
+                    </div>
+                    
+                    <!-- Other RSS Feeds -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-white mb-4">Other RSS Feeds (${otherFeeds.length})</h3>
+                        <div class="grid md:grid-cols-2 gap-3">
+                            ${otherFeeds.map(f => `
+                                <div class="glass rounded-xl p-4 flex items-center gap-4">
+                                    <div class="w-10 h-10 rounded-lg bg-neon-amber/20 text-neon-amber flex items-center justify-center">
+                                        <i data-lucide="rss" class="w-5 h-5"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-medium text-white truncate">${f.name}</h3>
+                                        <p class="text-xs text-slate-500 truncate">${f.url}</p>
+                                    </div>
+                                    <span class="px-2 py-1 text-xs rounded-full ${f.is_active ? 'bg-neon-green/20 text-neon-green' : 'bg-slate-800 text-slate-500'}">
+                                        ${f.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
                 </div>
             `;
+        }
+        
+        async function addSubreddit() {
+            const name = document.getElementById('subreddit-name').value.trim();
+            const sort = document.getElementById('subreddit-sort').value;
+            if (!name) return alert('Enter a subreddit name');
+            
+            try {
+                const res = await fetch('/api/feeds/reddit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subreddit: name, sort: sort, time: 'day' })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to add subreddit');
+                
+                alert(data.message);
+                document.getElementById('subreddit-name').value = '';
+                await loadData();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+        
+        async function quickAddSubreddit(name) {
+            try {
+                const res = await fetch('/api/feeds/reddit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subreddit: name, sort: 'top', time: 'day' })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to add subreddit');
+                
+                await loadData();
+            } catch (err) {
+                console.error(err);
+            }
         }
 
         function renderAssistant() {
@@ -1027,12 +1115,13 @@
                         <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-electric/20 via-purple-500/10 to-obsidian p-8 border border-electric/20">
                             <div class="absolute top-0 right-0 w-64 h-64 bg-electric/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                             <div class="relative">
-                                <h1 class="text-3xl font-display font-bold text-white mb-2">Your AI Copywriter</h1>
-                                <p class="text-slate-400 max-w-xl">Generate high-converting scripts, hooks, and ad copy. Powered by your winning ads and real-time news.</p>
-                                <div class="flex items-center gap-4 mt-4 text-sm">
+                                <h1 class="text-3xl font-display font-bold text-white mb-2">Master-Level AI Copywriter</h1>
+                                <p class="text-slate-400 max-w-xl">Trained on the greats: Schwartz, Hopkins, Halbert, Kennedy, Cialdini, Ogilvy, Carlton, Sugarman. Aggressive direct response that converts.</p>
+                                <div class="flex flex-wrap items-center gap-4 mt-4 text-sm">
                                     <span class="flex items-center gap-2 text-slate-500"><i data-lucide="file-text" class="w-4 h-4 text-neon-green"></i> ${state.ads.length} winning ads</span>
                                     <span class="flex items-center gap-2 text-slate-500"><i data-lucide="flame" class="w-4 h-4 text-neon-amber"></i> ${topNews} hot articles</span>
                                     <span class="flex items-center gap-2 text-slate-500"><i data-lucide="target" class="w-4 h-4 text-electric"></i> ${state.niches.length} niches</span>
+                                    <span class="flex items-center gap-2 text-slate-500"><i data-lucide="book-open" class="w-4 h-4 text-purple-400"></i> 25+ copywriting frameworks</span>
                                 </div>
                             </div>
                         </div>
@@ -1054,10 +1143,11 @@
                         
                         <!-- Quick Script Buttons -->
                         <div class="flex flex-wrap gap-2">
-                            <button onclick="quickScript('vsl')" class="px-3 py-2 rounded-xl bg-electric/10 text-electric hover:bg-electric/20 transition-colors text-sm font-medium">📹 VSL</button>
-                            <button onclick="quickScript('ugc')" class="px-3 py-2 rounded-xl bg-neon-rose/10 text-neon-rose hover:bg-neon-rose/20 transition-colors text-sm font-medium">🎬 UGC</button>
-                            <button onclick="quickScript('native')" class="px-3 py-2 rounded-xl bg-neon-amber/10 text-neon-amber hover:bg-neon-amber/20 transition-colors text-sm font-medium">📰 Native</button>
-                            <button onclick="quickScript('hooks')" class="px-3 py-2 rounded-xl bg-neon-green/10 text-neon-green hover:bg-neon-green/20 transition-colors text-sm font-medium">🪝 Hooks</button>
+                            <button onclick="quickScript('vsl')" class="px-3 py-2 rounded-xl bg-electric/10 text-electric hover:bg-electric/20 transition-colors text-sm font-medium" title="Aggressive VSL (Schwartz + Halbert)">📹 VSL</button>
+                            <button onclick="quickScript('ugc')" class="px-3 py-2 rounded-xl bg-neon-rose/10 text-neon-rose hover:bg-neon-rose/20 transition-colors text-sm font-medium" title="Authentic UGC with Epiphany Bridge">🎬 UGC</button>
+                            <button onclick="quickScript('hooks')" class="px-3 py-2 rounded-xl bg-neon-green/10 text-neon-green hover:bg-neon-green/20 transition-colors text-sm font-medium" title="15 aggressive hooks">🪝 Hooks</button>
+                            <button onclick="quickScript('fascinations')" class="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors text-sm font-medium" title="25 Dan Kennedy bullets">🔥 Fascinations</button>
+                            <button onclick="showMoreScripts()" class="px-3 py-2 rounded-xl bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors text-sm font-medium">More ▾</button>
                         </div>
                     </div>
 
@@ -1073,21 +1163,21 @@
                                     <h3 class="text-lg font-semibold text-white mb-2">What can I help you write?</h3>
                                     <p class="text-sm text-slate-500 max-w-md mx-auto mb-6">Scripts, hooks, emails, ad copy — just ask. I'll use your winning ads and trending news for inspiration.</p>
                                     <div class="grid md:grid-cols-2 gap-3 max-w-lg mx-auto">
-                                        <button onclick="setPrompt('Write a 60-second UGC script for auto insurance targeting young drivers')" class="p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-left transition-colors group">
+                                        <button onclick="setPrompt('Write an aggressive UGC script for auto insurance. Use the Epiphany Bridge story structure. Target young drivers getting screwed by high rates.')" class="p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-left transition-colors group">
                                             <p class="text-sm text-white group-hover:text-electric transition-colors">🎬 UGC Script</p>
-                                            <p class="text-xs text-slate-500 mt-1">60s auto insurance for young drivers</p>
+                                            <p class="text-xs text-slate-500 mt-1">Epiphany Bridge auto insurance</p>
                                         </button>
-                                        <button onclick="setPrompt('Give me 10 scroll-stopping hooks about refinancing your mortgage')" class="p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-left transition-colors group">
+                                        <button onclick="setPrompt('Give me 15 scroll-stopping hooks for refi. Mix of fear-based, greed-based, news-jacking, and contrarian. Be aggressive.')" class="p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-left transition-colors group">
                                             <p class="text-sm text-white group-hover:text-electric transition-colors">🪝 Hook Pack</p>
-                                            <p class="text-xs text-slate-500 mt-1">10 refi mortgage hooks</p>
+                                            <p class="text-xs text-slate-500 mt-1">15 aggressive refi hooks</p>
                                         </button>
-                                        <button onclick="setPrompt('Write a VSL script about home insurance using fear of natural disasters')" class="p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-left transition-colors group">
+                                        <button onclick="setPrompt('Write a Gary Halbert style VSL for home insurance. Use fear of natural disasters + government incompetence. Really agitate the pain.')" class="p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-left transition-colors group">
                                             <p class="text-sm text-white group-hover:text-electric transition-colors">📹 VSL Script</p>
-                                            <p class="text-xs text-slate-500 mt-1">Home insurance disaster angle</p>
+                                            <p class="text-xs text-slate-500 mt-1">Halbert-style fear VSL</p>
                                         </button>
-                                        <button onclick="setPrompt('Create a native ad article about why insurance rates are rising')" class="p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-left transition-colors group">
-                                            <p class="text-sm text-white group-hover:text-electric transition-colors">📰 Native Ad</p>
-                                            <p class="text-xs text-slate-500 mt-1">Rising rates news angle</p>
+                                        <button onclick="setPrompt('Write 25 fascination bullets for Medicare enrollment. Dan Kennedy style - create intense curiosity. Make them NEED to learn more.')" class="p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-left transition-colors group">
+                                            <p class="text-sm text-white group-hover:text-electric transition-colors">🔥 Fascinations</p>
+                                            <p class="text-xs text-slate-500 mt-1">Kennedy-style Medicare bullets</p>
                                         </button>
                                     </div>
                                 </div>
@@ -1524,6 +1614,61 @@
             }
         }
 
+        function showMoreScripts() {
+            const menu = document.getElementById('more-scripts-menu');
+            if (menu) {
+                menu.remove();
+                return;
+            }
+            
+            const btn = document.querySelector('[onclick="showMoreScripts()"]');
+            const rect = btn.getBoundingClientRect();
+            
+            const menuHtml = `
+                <div id="more-scripts-menu" class="fixed bg-obsidian border border-slate-700 rounded-xl shadow-xl z-50 py-2 min-w-48" style="top: ${rect.bottom + 8}px; right: ${window.innerWidth - rect.right}px;">
+                    <button onclick="quickScript('native'); hideMoreScripts();" class="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-800 flex items-center gap-3">
+                        <span class="text-lg">📰</span>
+                        <div>
+                            <div class="text-white">Native Ad</div>
+                            <div class="text-xs text-slate-500">Editorial-style (Masterson)</div>
+                        </div>
+                    </button>
+                    <button onclick="quickScript('email'); hideMoreScripts();" class="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-800 flex items-center gap-3">
+                        <span class="text-lg">📧</span>
+                        <div>
+                            <div class="text-white">Email Sequence</div>
+                            <div class="text-xs text-slate-500">3-email Kennedy sequence</div>
+                        </div>
+                    </button>
+                    <button onclick="quickScript('advertorial'); hideMoreScripts();" class="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-800 flex items-center gap-3">
+                        <span class="text-lg">📄</span>
+                        <div>
+                            <div class="text-white">Advertorial</div>
+                            <div class="text-xs text-slate-500">Long-form native (1500-2500 words)</div>
+                        </div>
+                    </button>
+                    <button onclick="quickScript('lander'); hideMoreScripts();" class="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-800 flex items-center gap-3">
+                        <span class="text-lg">🖥️</span>
+                        <div>
+                            <div class="text-white">Landing Page</div>
+                            <div class="text-xs text-slate-500">Full LP with offer stack</div>
+                        </div>
+                    </button>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', menuHtml);
+            
+            // Close on click outside
+            setTimeout(() => {
+                document.addEventListener('click', hideMoreScripts, { once: true });
+            }, 10);
+        }
+        
+        function hideMoreScripts() {
+            const menu = document.getElementById('more-scripts-menu');
+            if (menu) menu.remove();
+        }
+
         async function quickScript(scriptType) {
             const nicheId = state.chatNicheId || (state.niches[0] ? state.niches[0].id : null);
             
@@ -1537,11 +1682,14 @@
 
             // Add user message
             const scriptNames = {
-                vsl: 'Video Sales Letter',
+                vsl: 'Aggressive VSL',
                 ugc: 'UGC Script',
                 native: 'Native Ad',
-                hooks: 'Hook Pack',
-                email: 'Email Sequence'
+                hooks: 'Hook Pack (15)',
+                email: 'Email Sequence',
+                advertorial: 'Advertorial',
+                fascinations: 'Fascinations (25)',
+                lander: 'Landing Page'
             };
             
             state.chatMessages.push({ 

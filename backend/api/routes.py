@@ -177,6 +177,125 @@ async def add_feed(feed: FeedCreate, db: AsyncSession = Depends(get_db)):
     return await rss_service.add_feed(db, feed.name, feed.url, feed.category)
 
 
+class SubredditAdd(BaseModel):
+    subreddit: str  # Just the subreddit name without r/
+    sort: str = "top"  # hot, new, top, rising
+    time: str = "day"  # hour, day, week, month, year, all (only for top)
+
+
+@router.post("/feeds/reddit")
+async def add_subreddit(data: SubredditAdd, db: AsyncSession = Depends(get_db)):
+    """
+    Add a subreddit as an RSS feed.
+    Just provide the subreddit name (e.g., 'personalfinance' not 'r/personalfinance')
+    """
+    # Clean the subreddit name
+    subreddit = data.subreddit.strip().lower()
+    subreddit = subreddit.replace("r/", "").replace("/r/", "")
+    
+    # Build the RSS URL
+    if data.sort == "top":
+        url = f"https://www.reddit.com/r/{subreddit}/top/.rss?t={data.time}"
+    else:
+        url = f"https://www.reddit.com/r/{subreddit}/{data.sort}/.rss"
+    
+    name = f"Reddit - r/{subreddit} ({data.sort})"
+    category = "Reddit"
+    
+    # Check if already exists
+    from sqlalchemy import select
+    from backend.models import RSSFeed
+    result = await db.execute(select(RSSFeed).where(RSSFeed.url == url))
+    existing = result.scalar_one_or_none()
+    
+    if existing:
+        return {"message": f"Subreddit r/{subreddit} already added", "feed": existing}
+    
+    # Add the feed
+    feed = await rss_service.add_feed(db, name, url, category)
+    return {"message": f"Added r/{subreddit} successfully!", "feed": feed}
+
+
+@router.get("/feeds/reddit/popular")
+async def get_popular_subreddits():
+    """Get a list of recommended subreddits for copywriting - organized by viral/emotional potential"""
+    return {
+        "categories": {
+            "🔥 VIRAL VIDEO / FREAKOUT (Highest Engagement)": [
+                {"name": "PublicFreakout", "description": "Viral freakouts, confrontations - pure engagement gold"},
+                {"name": "facepalm", "description": "Stupidity, fails - shareable content"},
+                {"name": "Whatcouldgowrong", "description": "Disasters, fails - 'this could be you'"},
+                {"name": "IdiotsInCars", "description": "Bad drivers - AUTO INSURANCE GOLDMINE"},
+                {"name": "instant_regret", "description": "Immediate consequences - emotional payoff"},
+                {"name": "Wellthatsucks", "description": "Bad luck stories - relatable pain"},
+                {"name": "CrazyFuckingVideos", "description": "Shocking content - pattern interrupt"},
+                {"name": "TikTokCringe", "description": "Viral TikTok content - trending"},
+                {"name": "AbruptChaos", "description": "Sudden chaos - attention grabbing"},
+                {"name": "nextfuckinglevel", "description": "Amazing content - aspirational"},
+            ],
+            "⚖️ JUSTICE / REVENGE / KARMA (Satisfying Payoff)": [
+                {"name": "JusticeServed", "description": "People getting what they deserve"},
+                {"name": "MaliciousCompliance", "description": "Revenge through rule-following"},
+                {"name": "pettyrevenge", "description": "Small satisfying revenge stories"},
+                {"name": "ProRevenge", "description": "Elaborate revenge - gripping stories"},
+                {"name": "NuclearRevenge", "description": "Extreme revenge - dramatic"},
+                {"name": "ChoosingBeggars", "description": "Entitled people getting denied"},
+                {"name": "FuckYouKaren", "description": "Karen takedowns - satisfying"},
+                {"name": "byebyejob", "description": "People losing jobs for bad behavior"},
+                {"name": "LeopardsAteMyFace", "description": "Consequences of own choices"},
+            ],
+            "😡 CORPORATE HATE / DYSTOPIA (Anti-Establishment Rage)": [
+                {"name": "antiwork", "description": "Work rage, quitting stories - MASSIVE engagement"},
+                {"name": "WorkReform", "description": "Workplace issues and frustrations"},
+                {"name": "LateStageCapitalism", "description": "Anti-corporate outrage"},
+                {"name": "ABoringDystopia", "description": "Dystopian modern life"},
+                {"name": "recruitinghell", "description": "Job hunting nightmares"},
+                {"name": "assholedesign", "description": "Deceptive corporate practices"},
+                {"name": "lostgeneration", "description": "Generational economic struggles"},
+            ],
+            "💸 MONEY / FINANCIAL FEAR": [
+                {"name": "wallstreetbets", "description": "YOLO investing, losses - dramatic"},
+                {"name": "povertyfinance", "description": "Financial struggles - emotional"},
+                {"name": "personalfinance", "description": "Money problems and solutions"},
+                {"name": "StudentLoans", "description": "Student debt pain"},
+                {"name": "REBubble", "description": "Housing crisis fears"},
+                {"name": "Scams", "description": "Scam warnings and stories"},
+                {"name": "debt", "description": "Debt struggles"},
+            ],
+            "📖 STORIES / CONFESSIONS (Raw Emotional Hooks)": [
+                {"name": "tifu", "description": "Today I F*cked Up - mistake stories"},
+                {"name": "confessions", "description": "Dark confessions - gripping"},
+                {"name": "TrueOffMyChest", "description": "Emotional venting"},
+                {"name": "AmItheAsshole", "description": "Moral dilemmas, relationship drama"},
+                {"name": "BestofRedditorUpdates", "description": "Saga compilations - addictive"},
+                {"name": "relationship_advice", "description": "Relationship drama"},
+                {"name": "legaladvice", "description": "Legal nightmares"},
+            ],
+            "📰 NEWS / CONTROVERSY": [
+                {"name": "nottheonion", "description": "Absurd real headlines - write themselves"},
+                {"name": "news", "description": "Breaking news"},
+                {"name": "worldnews", "description": "International news"},
+                {"name": "politics", "description": "Political drama"},
+                {"name": "Conservative", "description": "Right-wing perspective"},
+                {"name": "SubredditDrama", "description": "Internet drama compilations"},
+                {"name": "OutOfTheLoop", "description": "Trending controversies explained"},
+            ],
+            "🤬 INFURIATING / RAGE": [
+                {"name": "mildlyinfuriating", "description": "Annoying things - relatable rage"},
+                {"name": "extremelyinfuriating", "description": "Very annoying things"},
+                {"name": "iamatotalpieceofshit", "description": "Terrible people - outrage"},
+                {"name": "trashy", "description": "Trashy behavior"},
+            ],
+            "🚗 CAR / DRIVING (Auto Insurance)": [
+                {"name": "IdiotsInCars", "description": "Bad drivers, crashes - perfect for auto insurance"},
+                {"name": "Dashcam", "description": "Dashcam footage - accidents"},
+                {"name": "Roadcam", "description": "Road incidents"},
+                {"name": "CarCrash", "description": "Car accident content"},
+            ],
+        }
+    }
+
+
 @router.post("/feeds/fetch")
 async def fetch_news(db: AsyncSession = Depends(get_db)):
     """Fetch news from all active RSS feeds"""
@@ -838,10 +957,13 @@ async def get_script_types():
     """Get available script types"""
     return {
         "script_types": [
-            {"id": "vsl", "name": "Video Sales Letter (VSL)", "description": "Long-form persuasive video script"},
-            {"id": "ugc", "name": "UGC Script", "description": "User-generated content style, 30-60 seconds"},
-            {"id": "native", "name": "Native Ad", "description": "Editorial style, feels like content"},
-            {"id": "hooks", "name": "Hook Pack", "description": "10 scroll-stopping hooks"},
-            {"id": "email", "name": "Email Sequence", "description": "3-email promotional sequence"},
+            {"id": "vsl", "name": "VSL Script", "description": "Aggressive video sales letter (Schwartz + Halbert style)"},
+            {"id": "ugc", "name": "UGC Script", "description": "Authentic UGC with Epiphany Bridge storytelling"},
+            {"id": "native", "name": "Native Ad", "description": "Editorial-style native content (Masterson leads)"},
+            {"id": "hooks", "name": "Hook Pack (15)", "description": "15 aggressive hooks: fear, greed, shock, curiosity, news"},
+            {"id": "email", "name": "Email Sequence", "description": "3-email Kennedy-style direct response sequence"},
+            {"id": "advertorial", "name": "Advertorial", "description": "Long-form native article (1500-2500 words)"},
+            {"id": "fascinations", "name": "Fascinations (25)", "description": "25 curiosity-driven bullets (Dan Kennedy style)"},
+            {"id": "lander", "name": "Landing Page", "description": "Full landing page copy with offer stack"},
         ]
     }

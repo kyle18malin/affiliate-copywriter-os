@@ -179,41 +179,57 @@ async def generate_hooks(
             if article.get('trending_angles'):
                 news_context += f"  Angles: {', '.join(article['trending_angles'][:2])}\n"
     
-    # Niche-specific context
+    # Niche-specific context - aggressive angles
     niche_context = {
         "Auto Insurance": """
 NICHE CONTEXT - AUTO INSURANCE:
-- Pain points: High premiums, rate increases, accidents affecting rates, SR-22 requirements
-- Desires: Lower rates, easy switching, accident forgiveness, good driver discounts
-- Key triggers: Savings amounts, comparison shopping, "15 minutes" convenience
-- Audience: Drivers frustrated with current rates, new car buyers, young drivers, seniors""",
+- PAIN: Insurance companies are SCREWING drivers with hidden rate hikes. They count on you being too lazy to switch. They profit from your complacency.
+- FEAR: One accident = years of premium punishment. Your rate can spike 40%+ for a minor fender bender. The system is rigged against you.
+- ANGER: Why are YOU paying more than your neighbor for the same coverage? Why did your rate go up when you had ZERO claims?
+- GREED: People are saving $50-100/month by doing this one thing. That's $600-1,200/year you're leaving on the table.
+- ENEMY: Big insurance companies, the "loyalty penalty", corporate greed
+- AUDIENCE: Anyone who's been screwed by their insurance company (everyone)""",
         
         "Home Insurance": """
 NICHE CONTEXT - HOME INSURANCE:
-- Pain points: Rising premiums, coverage gaps, claim denials, natural disaster fears
-- Desires: Better coverage, lower rates, bundle discounts, peace of mind
-- Key triggers: Home value protection, storm/disaster coverage, family security
-- Audience: Homeowners, new home buyers, people in disaster-prone areas""",
+- PAIN: Home insurance rates are SKYROCKETING. Claims getting denied. People left with NOTHING after disasters.
+- FEAR: What if a storm destroys your home and your insurance doesn't cover it? What if you're underinsured? What happens to your family?
+- ANGER: Insurance companies take your money for years, then fight you when you need them. They find loopholes to deny claims.
+- GREED: Some homeowners are paying HALF of what you pay for better coverage. They know something you don't.
+- ENEMY: Greedy insurance corporations, claim deniers, coverage gaps you didn't know existed
+- AUDIENCE: Homeowners terrified of losing everything, people in disaster-prone areas (hurricanes, floods, fires)""",
         
         "Refi": """
 NICHE CONTEXT - REFINANCING:
-- Pain points: High monthly payments, high interest rates, debt consolidation needs
-- Desires: Lower payments, cash out equity, shorter loan terms, debt freedom
-- Key triggers: Interest rate drops, monthly savings amounts, debt payoff
-- Audience: Homeowners with equity, people with high-rate mortgages, debt consolidators"""
+- PAIN: You're HEMORRHAGING money every month to your mortgage. Your rate is probably too high. You're making your bank rich.
+- FEAR: What if rates go up and you miss the window? What if you can't refinance later? Every month you wait = money lost.
+- ANGER: Banks want you to keep your high rate. They profit from your inaction. The system doesn't want you to know about this.
+- GREED: People are saving $300-500/month by refinancing. That's a car payment. That's a vacation. That's YOUR money.
+- ENEMY: Big banks, mortgage companies hoping you stay ignorant, the financial establishment
+- AUDIENCE: Homeowners bleeding cash, people who haven't checked rates in 2+ years, debt-stressed families"""
     }
     
-    system_prompt = """You are an elite direct response copywriter specializing in affiliate marketing hooks.
-Your hooks are known for:
-- Stopping the scroll instantly
-- Creating irresistible curiosity
-- Tapping into deep emotional triggers
-- Feeling native and authentic, not "ad-like"
-- Converting browsers into clickers
+    system_prompt = """You are an AGGRESSIVE direct response copywriter trained by the greatest copywriters in history.
 
-You write hooks that feel like insider tips from a friend, not corporate advertising."""
+YOUR MASTERS' TEACHINGS:
+- Eugene Schwartz: Match copy to awareness level. Sophistication matters. Channel existing desire.
+- John Caples: Headlines with numbers, "How to", "Warning:", questions that touch self-interest
+- Gary Halbert: Write like you talk. AIDA formula. Urgency is mandatory, not optional.
+- Dan Kennedy: Fascinations. Proof stacking. Damaging admission. Takeaway selling.
+- Robert Cialdini: Scarcity, social proof, authority, reciprocity, commitment, liking
+- David Ogilvy: Specifics beat generalities. Headlines with news. Long copy if interesting.
+- Joe Sugarman: Slippery slide - each line sells the next. Curiosity triggers. Storytelling bypasses resistance.
+- Drew Eric Whitman: Life Force 8 desires - survival, fear, sexual, protection, approval, superiority
 
-    prompt = f"""Generate {num_hooks} scroll-stopping hooks for {niche} affiliate ads.
+YOUR APPROACH:
+- BE AGGRESSIVE. Not illegal, but edgy.
+- Use FEAR and LOSS AVERSION - what they'll miss is 2x more motivating than what they'll gain
+- Create URGENCY - deadlines, scarcity, limited time
+- Use CONTROVERSY - take strong stances, call out enemies
+- Be SPECIFIC - "37.6% more" beats "much more"
+- Pattern interrupt HARD in the first 3 words"""
+
+    prompt = f"""Generate {num_hooks} AGGRESSIVE, scroll-stopping hooks for {niche} affiliate ads.
 
 {niche_context.get(niche, '')}
 
@@ -223,17 +239,24 @@ PROVEN PATTERNS FROM WINNING ADS:{patterns_context if patterns_context else " (N
 {"REQUESTED STYLE: " + hook_style if hook_style else ""}
 
 REQUIREMENTS:
-1. Each hook should be 1-2 sentences max
-2. Use patterns from winning ads but make them FRESH
-3. Incorporate current news angles where relevant
-4. Vary the hook types (question, statement, story, stat, etc.)
-5. Make them feel native/organic, not "salesy"
+1. Each hook should be 1-2 sentences max (PUNCHY)
+2. First 3 words MUST stop the scroll - pattern interrupt
+3. Use AGGRESSIVE tactics: fear, greed, controversy, curiosity, anger, shock
+4. Include SPECIFIC numbers when possible (not round numbers - 37%, not 40%)
+5. Mix these hook types:
+   - FEAR/WARNING: "Warning:", "If you do X, you'll lose..."
+   - GREED/DESIRE: Specific $ amounts, timeframes, results
+   - SHOCK/CONTRARIAN: "Everything you know about X is WRONG"
+   - CURIOSITY/OPEN LOOP: Questions that DEMAND answers
+   - NEWS JACKING: Tie to current events, political drama, trending topics
+6. Make them feel like insider tips, not corporate ads
+7. Push boundaries but stay legal
 
 Return as JSON array:
 [
     {{
         "hook_text": "The actual hook",
-        "hook_type": "question/statement/story/stat/curiosity",
+        "hook_type": "fear/greed/shock/curiosity/news/story",
         "emotional_trigger": "Primary emotion targeted",
         "inspiration": "What pattern or news inspired this"
     }}

@@ -105,10 +105,122 @@ DEFAULT_FEEDS = [
     
     # ===== TRENDING / VIRAL =====
     {"name": "BuzzFeed", "url": "https://www.buzzfeed.com/index.xml", "category": "Trending"},
-    {"name": "Reddit - Popular", "url": "https://www.reddit.com/r/popular/.rss", "category": "Trending"},
-    {"name": "Reddit - News", "url": "https://www.reddit.com/r/news/.rss", "category": "Trending"},
-    {"name": "Reddit - Politics", "url": "https://www.reddit.com/r/politics/.rss", "category": "Trending"},
-    {"name": "Reddit - Personal Finance", "url": "https://www.reddit.com/r/personalfinance/.rss", "category": "Trending"},
+    
+    # ═══════════════════════════════════════════════════════════════════
+    # REDDIT - THE REAL GOLDMINE (VIRAL, CONTROVERSIAL, EMOTIONAL)
+    # ═══════════════════════════════════════════════════════════════════
+    
+    # ===== VIRAL VIDEO & FREAKOUT CONTENT (Pure engagement gold) =====
+    {"name": "Reddit - PublicFreakout", "url": "https://www.reddit.com/r/PublicFreakout/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - facepalm", "url": "https://www.reddit.com/r/facepalm/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - Whatcouldgowrong", "url": "https://www.reddit.com/r/Whatcouldgowrong/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - instant_regret", "url": "https://www.reddit.com/r/instant_regret/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - Wellthatsucks", "url": "https://www.reddit.com/r/Wellthatsucks/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - therewasanattempt", "url": "https://www.reddit.com/r/therewasanattempt/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - AbruptChaos", "url": "https://www.reddit.com/r/AbruptChaos/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - CrazyFuckingVideos", "url": "https://www.reddit.com/r/CrazyFuckingVideos/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - nextfuckinglevel", "url": "https://www.reddit.com/r/nextfuckinglevel/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - Damnthatsinteresting", "url": "https://www.reddit.com/r/Damnthatsinteresting/top/.rss?t=day", "category": "Reddit - Viral"},
+    
+    # ===== JUSTICE / REVENGE / KARMA (Satisfying emotional content) =====
+    {"name": "Reddit - JusticeServed", "url": "https://www.reddit.com/r/JusticeServed/top/.rss?t=day", "category": "Reddit - Justice"},
+    {"name": "Reddit - MaliciousCompliance", "url": "https://www.reddit.com/r/MaliciousCompliance/top/.rss?t=day", "category": "Reddit - Justice"},
+    {"name": "Reddit - pettyrevenge", "url": "https://www.reddit.com/r/pettyrevenge/top/.rss?t=day", "category": "Reddit - Justice"},
+    {"name": "Reddit - ProRevenge", "url": "https://www.reddit.com/r/ProRevenge/top/.rss?t=week", "category": "Reddit - Justice"},
+    {"name": "Reddit - NuclearRevenge", "url": "https://www.reddit.com/r/NuclearRevenge/top/.rss?t=week", "category": "Reddit - Justice"},
+    {"name": "Reddit - LeopardsAteMyFace", "url": "https://www.reddit.com/r/LeopardsAteMyFace/top/.rss?t=day", "category": "Reddit - Justice"},
+    {"name": "Reddit - byebyejob", "url": "https://www.reddit.com/r/byebyejob/top/.rss?t=day", "category": "Reddit - Justice"},
+    {"name": "Reddit - FUCKYOUINPARTICULAR", "url": "https://www.reddit.com/r/FUCKYOUINPARTICULAR/top/.rss?t=day", "category": "Reddit - Justice"},
+    
+    # ===== ENTITLED PEOPLE / CHOOSING BEGGARS (Outrage content) =====
+    {"name": "Reddit - ChoosingBeggars", "url": "https://www.reddit.com/r/ChoosingBeggars/top/.rss?t=day", "category": "Reddit - Entitled"},
+    {"name": "Reddit - EntitledParents", "url": "https://www.reddit.com/r/entitledparents/top/.rss?t=day", "category": "Reddit - Entitled"},
+    {"name": "Reddit - EntitledPeople", "url": "https://www.reddit.com/r/EntitledPeople/top/.rss?t=day", "category": "Reddit - Entitled"},
+    {"name": "Reddit - FuckYouKaren", "url": "https://www.reddit.com/r/FuckYouKaren/top/.rss?t=day", "category": "Reddit - Entitled"},
+    {"name": "Reddit - IDontWorkHereLady", "url": "https://www.reddit.com/r/IDontWorkHereLady/top/.rss?t=day", "category": "Reddit - Entitled"},
+    
+    # ===== CAR CRASHES / BAD DRIVERS (Auto insurance GOLD) =====
+    {"name": "Reddit - IdiotsInCars", "url": "https://www.reddit.com/r/IdiotsInCars/top/.rss?t=day", "category": "Reddit - Cars"},
+    {"name": "Reddit - Dashcam", "url": "https://www.reddit.com/r/Dashcam/top/.rss?t=day", "category": "Reddit - Cars"},
+    {"name": "Reddit - CarCrash", "url": "https://www.reddit.com/r/CarCrash/top/.rss?t=week", "category": "Reddit - Cars"},
+    {"name": "Reddit - Roadcam", "url": "https://www.reddit.com/r/Roadcam/top/.rss?t=day", "category": "Reddit - Cars"},
+    {"name": "Reddit - BadDrivers", "url": "https://www.reddit.com/r/BadDrivers/top/.rss?t=week", "category": "Reddit - Cars"},
+    
+    # ===== CONFESSIONS / F*CK UPS / DRAMA (Raw emotional stories) =====
+    {"name": "Reddit - tifu", "url": "https://www.reddit.com/r/tifu/top/.rss?t=day", "category": "Reddit - Stories"},
+    {"name": "Reddit - confessions", "url": "https://www.reddit.com/r/confessions/top/.rss?t=day", "category": "Reddit - Stories"},
+    {"name": "Reddit - TrueOffMyChest", "url": "https://www.reddit.com/r/TrueOffMyChest/top/.rss?t=day", "category": "Reddit - Stories"},
+    {"name": "Reddit - AmItheAsshole", "url": "https://www.reddit.com/r/AmItheAsshole/top/.rss?t=day", "category": "Reddit - Stories"},
+    {"name": "Reddit - relationship_advice", "url": "https://www.reddit.com/r/relationship_advice/top/.rss?t=day", "category": "Reddit - Stories"},
+    {"name": "Reddit - BestofRedditorUpdates", "url": "https://www.reddit.com/r/BestofRedditorUpdates/top/.rss?t=day", "category": "Reddit - Stories"},
+    {"name": "Reddit - offmychest", "url": "https://www.reddit.com/r/offmychest/top/.rss?t=day", "category": "Reddit - Stories"},
+    
+    # ===== CORPORATE HATE / DYSTOPIA (Anti-establishment rage) =====
+    {"name": "Reddit - antiwork", "url": "https://www.reddit.com/r/antiwork/top/.rss?t=day", "category": "Reddit - Corporate"},
+    {"name": "Reddit - WorkReform", "url": "https://www.reddit.com/r/WorkReform/top/.rss?t=day", "category": "Reddit - Corporate"},
+    {"name": "Reddit - LateStageCapitalism", "url": "https://www.reddit.com/r/LateStageCapitalism/top/.rss?t=day", "category": "Reddit - Corporate"},
+    {"name": "Reddit - ABoringDystopia", "url": "https://www.reddit.com/r/ABoringDystopia/top/.rss?t=day", "category": "Reddit - Corporate"},
+    {"name": "Reddit - lostgeneration", "url": "https://www.reddit.com/r/lostgeneration/top/.rss?t=day", "category": "Reddit - Corporate"},
+    {"name": "Reddit - recruitinghell", "url": "https://www.reddit.com/r/recruitinghell/top/.rss?t=day", "category": "Reddit - Corporate"},
+    {"name": "Reddit - assholedesign", "url": "https://www.reddit.com/r/assholedesign/top/.rss?t=day", "category": "Reddit - Corporate"},
+    {"name": "Reddit - HailCorporate", "url": "https://www.reddit.com/r/HailCorporate/top/.rss?t=day", "category": "Reddit - Corporate"},
+    
+    # ===== MONEY DISASTERS / FINANCIAL FEAR =====
+    {"name": "Reddit - wallstreetbets", "url": "https://www.reddit.com/r/wallstreetbets/top/.rss?t=day", "category": "Reddit - Money"},
+    {"name": "Reddit - povertyfinance", "url": "https://www.reddit.com/r/povertyfinance/top/.rss?t=day", "category": "Reddit - Money"},
+    {"name": "Reddit - personalfinance", "url": "https://www.reddit.com/r/personalfinance/top/.rss?t=day", "category": "Reddit - Money"},
+    {"name": "Reddit - StudentLoans", "url": "https://www.reddit.com/r/StudentLoans/top/.rss?t=day", "category": "Reddit - Money"},
+    {"name": "Reddit - Debt", "url": "https://www.reddit.com/r/debt/top/.rss?t=day", "category": "Reddit - Money"},
+    {"name": "Reddit - FluentInFinance", "url": "https://www.reddit.com/r/FluentInFinance/top/.rss?t=day", "category": "Reddit - Money"},
+    {"name": "Reddit - economy", "url": "https://www.reddit.com/r/economy/top/.rss?t=day", "category": "Reddit - Money"},
+    
+    # ===== HOUSING CRISIS / REAL ESTATE DRAMA =====
+    {"name": "Reddit - REBubble", "url": "https://www.reddit.com/r/REBubble/top/.rss?t=day", "category": "Reddit - Housing"},
+    {"name": "Reddit - RealEstate", "url": "https://www.reddit.com/r/RealEstate/top/.rss?t=day", "category": "Reddit - Housing"},
+    {"name": "Reddit - FirstTimeHomeBuyer", "url": "https://www.reddit.com/r/FirstTimeHomeBuyer/top/.rss?t=day", "category": "Reddit - Housing"},
+    {"name": "Reddit - homeowners", "url": "https://www.reddit.com/r/homeowners/top/.rss?t=day", "category": "Reddit - Housing"},
+    {"name": "Reddit - Landlord", "url": "https://www.reddit.com/r/Landlord/top/.rss?t=week", "category": "Reddit - Housing"},
+    
+    # ===== SCAMS / FRAUD / WARNINGS =====
+    {"name": "Reddit - Scams", "url": "https://www.reddit.com/r/Scams/top/.rss?t=day", "category": "Reddit - Scams"},
+    {"name": "Reddit - ScamHomeWarranty", "url": "https://www.reddit.com/r/ScamHomeWarranty/top/.rss?t=week", "category": "Reddit - Scams"},
+    {"name": "Reddit - Insurance", "url": "https://www.reddit.com/r/Insurance/top/.rss?t=week", "category": "Reddit - Insurance"},
+    {"name": "Reddit - HealthInsurance", "url": "https://www.reddit.com/r/HealthInsurance/top/.rss?t=week", "category": "Reddit - Insurance"},
+    
+    # ===== ABSURD NEWS / NOTTHEONION (Headlines that write themselves) =====
+    {"name": "Reddit - nottheonion", "url": "https://www.reddit.com/r/nottheonion/top/.rss?t=day", "category": "Reddit - News"},
+    {"name": "Reddit - news", "url": "https://www.reddit.com/r/news/top/.rss?t=day", "category": "Reddit - News"},
+    {"name": "Reddit - worldnews", "url": "https://www.reddit.com/r/worldnews/top/.rss?t=day", "category": "Reddit - News"},
+    {"name": "Reddit - politics", "url": "https://www.reddit.com/r/politics/top/.rss?t=day", "category": "Reddit - News"},
+    {"name": "Reddit - Conservative", "url": "https://www.reddit.com/r/Conservative/top/.rss?t=day", "category": "Reddit - News"},
+    
+    # ===== CONTROVERSY / DRAMA / OPINIONS =====
+    {"name": "Reddit - unpopularopinion", "url": "https://www.reddit.com/r/unpopularopinion/top/.rss?t=day", "category": "Reddit - Controversy"},
+    {"name": "Reddit - The10thDentist", "url": "https://www.reddit.com/r/The10thDentist/top/.rss?t=day", "category": "Reddit - Controversy"},
+    {"name": "Reddit - SubredditDrama", "url": "https://www.reddit.com/r/SubredditDrama/top/.rss?t=day", "category": "Reddit - Controversy"},
+    {"name": "Reddit - OutOfTheLoop", "url": "https://www.reddit.com/r/OutOfTheLoop/top/.rss?t=day", "category": "Reddit - Controversy"},
+    {"name": "Reddit - HobbyDrama", "url": "https://www.reddit.com/r/HobbyDrama/top/.rss?t=week", "category": "Reddit - Controversy"},
+    {"name": "Reddit - agedlikemilk", "url": "https://www.reddit.com/r/agedlikemilk/top/.rss?t=day", "category": "Reddit - Controversy"},
+    
+    # ===== INFURIATING / RAGE CONTENT =====
+    {"name": "Reddit - mildlyinfuriating", "url": "https://www.reddit.com/r/mildlyinfuriating/top/.rss?t=day", "category": "Reddit - Rage"},
+    {"name": "Reddit - extremelyinfuriating", "url": "https://www.reddit.com/r/extremelyinfuriating/top/.rss?t=day", "category": "Reddit - Rage"},
+    {"name": "Reddit - rage", "url": "https://www.reddit.com/r/rage/top/.rss?t=day", "category": "Reddit - Rage"},
+    {"name": "Reddit - iamatotalpieceofshit", "url": "https://www.reddit.com/r/iamatotalpieceofshit/top/.rss?t=day", "category": "Reddit - Rage"},
+    {"name": "Reddit - trashy", "url": "https://www.reddit.com/r/trashy/top/.rss?t=day", "category": "Reddit - Rage"},
+    
+    # ===== LEGAL DRAMA / NIGHTMARE STORIES =====
+    {"name": "Reddit - legaladvice", "url": "https://www.reddit.com/r/legaladvice/top/.rss?t=day", "category": "Reddit - Legal"},
+    {"name": "Reddit - bestoflegaladvice", "url": "https://www.reddit.com/r/bestoflegaladvice/top/.rss?t=day", "category": "Reddit - Legal"},
+    
+    # ===== CRINGE / VIRAL SOCIAL CONTENT =====
+    {"name": "Reddit - TikTokCringe", "url": "https://www.reddit.com/r/TikTokCringe/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - cringepics", "url": "https://www.reddit.com/r/cringepics/top/.rss?t=day", "category": "Reddit - Viral"},
+    {"name": "Reddit - sadcringe", "url": "https://www.reddit.com/r/sadcringe/top/.rss?t=day", "category": "Reddit - Viral"},
+    
+    # ===== POPULAR / ALL (Catch-all viral) =====
+    {"name": "Reddit - popular", "url": "https://www.reddit.com/r/popular/top/.rss?t=day", "category": "Reddit - Trending"},
+    {"name": "Reddit - all", "url": "https://www.reddit.com/r/all/top/.rss?t=day", "category": "Reddit - Trending"},
     
     # ===== GOOGLE NEWS SPECIFIC TOPICS =====
     {"name": "Google News - Business", "url": "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB", "category": "Finance"},
