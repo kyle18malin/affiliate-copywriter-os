@@ -351,7 +351,7 @@ async def analyze_article(article_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/news/scored")
 async def get_scored_news(
-    limit: int = 100,
+    limit: int = 300,
     min_score: int = 0,
     db: AsyncSession = Depends(get_db)
 ):
@@ -389,7 +389,7 @@ async def get_scored_news(
 
 @router.get("/news/grouped")
 async def get_grouped_news(
-    limit: int = 100,
+    limit: int = 300,
     db: AsyncSession = Depends(get_db)
 ):
     """
