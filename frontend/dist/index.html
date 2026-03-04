@@ -622,14 +622,12 @@
                     
                     <!-- Fetch Stats -->
                     ${state.lastFetchStats && !state.newsLoading ? `
-                        <div class="glass rounded-xl p-3 flex items-center justify-between">
-                            <div class="flex items-center gap-4 text-sm">
-                                <span class="text-slate-400">Last fetch:</span>
-                                <span class="text-neon-green"><i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i>${state.lastFetchStats.articles_added || 0} new articles</span>
-                                <span class="text-slate-500">${state.lastFetchStats.feeds_processed || 0} feeds processed</span>
-                                ${state.lastFetchStats.reddit_success ? `<span class="text-orange-400">🤖 ${state.lastFetchStats.reddit_success} Reddit feeds</span>` : ''}
-                                ${state.lastFetchStats.reddit_failed ? `<span class="text-red-400">${state.lastFetchStats.reddit_failed} Reddit failed</span>` : ''}
-                                ${(state.lastFetchStats.errors || []).length > 0 ? `<span class="text-slate-600">${state.lastFetchStats.errors.length} errors</span>` : ''}
+                        <div class="glass rounded-xl p-3 flex items-center justify-between flex-wrap gap-2">
+                            <div class="flex items-center gap-3 text-sm flex-wrap">
+                                <span class="text-neon-green font-medium"><i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i>${state.lastFetchStats.articles_added || 0} new</span>
+                                <span class="text-slate-500">${state.lastFetchStats.feeds_processed || 0}/${state.lastFetchStats.total_feeds || '?'} feeds</span>
+                                ${state.lastFetchStats.reddit_success ? `<span class="text-orange-400">🤖 ${state.lastFetchStats.reddit_success} Reddit</span>` : ''}
+                                ${state.lastFetchStats.reddit_failed ? `<span class="text-red-400">${state.lastFetchStats.reddit_failed} failed</span>` : ''}
                             </div>
                             <button onclick="state.lastFetchStats = null; render();" class="text-slate-500 hover:text-white">
                                 <i data-lucide="x" class="w-4 h-4"></i>

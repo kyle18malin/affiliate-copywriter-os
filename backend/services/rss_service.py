@@ -231,27 +231,35 @@ DEFAULT_FEEDS = [
 ]
 
 
-async def fetch_feed(url: str, timeout: float = 30.0) -> Optional[feedparser.FeedParserDict]:
-    """Fetch and parse an RSS feed"""
-    # Reddit and many sites require a proper User-Agent
+async def fetch_feed_with_client(client: httpx.AsyncClient, url: str, timeout: float = 15.0) -> Optional[feedparser.FeedParserDict]:
+    """Fetch and parse an RSS feed using a shared client"""
+    try:
+        response = await client.get(url, timeout=timeout, follow_redirects=True)
+        if response.status_code == 200:
+            parsed = feedparser.parse(response.text)
+            if parsed and parsed.entries:
+                return parsed
+        return None
+    except Exception as e:
+        return None
+
+
+async def fetch_feed(url: str, timeout: float = 15.0) -> Optional[feedparser.FeedParserDict]:
+    """Fetch and parse an RSS feed (standalone version)"""
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "application/rss+xml, application/xml, text/xml, */*",
     }
     
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=timeout, follow_redirects=True, headers=headers)
+        async with httpx.AsyncClient(headers=headers, timeout=timeout) as client:
+            response = await client.get(url, follow_redirects=True)
             if response.status_code == 200:
                 parsed = feedparser.parse(response.text)
                 if parsed and parsed.entries:
                     return parsed
-                else:
-                    print(f"Feed returned no entries: {url}")
-            else:
-                print(f"Feed returned status {response.status_code}: {url}")
-    except Exception as e:
-        print(f"Error fetching feed {url}: {e}")
+    except Exception:
+        pass
     return None
 
 
@@ -292,7 +300,7 @@ async def get_all_feeds(db: AsyncSession) -> list[RSSFeed]:
 
 
 async def fetch_all_news(db: AsyncSession) -> dict:
-    """Fetch news from all active RSS feeds"""
+    """Fetch news from all active RSS feeds - FAST concurrent version"""
     import asyncio
     
     result = await db.execute(
@@ -300,90 +308,111 @@ async def fetch_all_news(db: AsyncSession) -> dict:
     )
     feeds = list(result.scalars().all())
     
-    stats = {"feeds_processed": 0, "articles_added": 0, "errors": [], "reddit_success": 0, "reddit_failed": 0}
+    stats = {
+        "feeds_processed": 0, 
+        "articles_added": 0, 
+        "errors": [], 
+        "reddit_success": 0, 
+        "reddit_failed": 0,
+        "total_feeds": len(feeds)
+    }
     
-    # Process feeds in batches to avoid overwhelming
-    batch_size = 10
+    if not feeds:
+        return stats
     
-    for i in range(0, len(feeds), batch_size):
-        batch = feeds[i:i + batch_size]
+    # HTTP client with proper headers - shared for all requests
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/rss+xml, application/xml, text/xml, */*",
+    }
+    
+    # Get all existing URLs in one query for fast duplicate checking
+    existing_result = await db.execute(select(NewsArticle.url))
+    existing_urls = set(row[0] for row in existing_result.fetchall())
+    
+    # Fetch all feeds concurrently in batches
+    async with httpx.AsyncClient(headers=headers, timeout=20.0) as client:
         
-        for feed in batch:
-            is_reddit = "reddit.com" in feed.url
+        # Process in concurrent batches of 20 feeds at a time
+        batch_size = 20
+        all_articles_to_add = []
+        
+        for i in range(0, len(feeds), batch_size):
+            batch = feeds[i:i + batch_size]
             
-            # Try fetching (with retry for Reddit)
-            parsed = None
-            attempts = 3 if is_reddit else 1
+            # Create fetch tasks for this batch
+            async def fetch_one(feed):
+                try:
+                    parsed = await fetch_feed_with_client(client, feed.url, timeout=15.0)
+                    return (feed, parsed)
+                except Exception:
+                    return (feed, None)
             
-            for attempt in range(attempts):
-                parsed = await fetch_feed(feed.url, timeout=45.0 if is_reddit else 30.0)
-                if parsed and parsed.entries:
-                    break
-                if is_reddit and attempt < attempts - 1:
-                    await asyncio.sleep(1)  # Brief pause before retry for Reddit
+            # Fetch all feeds in batch concurrently
+            results = await asyncio.gather(*[fetch_one(f) for f in batch], return_exceptions=True)
             
-            if not parsed or not parsed.entries:
-                stats["errors"].append(f"Failed: {feed.name}")
-                if is_reddit:
-                    stats["reddit_failed"] += 1
-                continue
-            
-            stats["feeds_processed"] += 1
-            if is_reddit:
-                stats["reddit_success"] += 1
-            
-            # Get more entries from each feed (especially Reddit)
-            max_entries = 50 if is_reddit else 25
-            
-            for entry in parsed.entries[:max_entries]:
-                # Check if article already exists
-                entry_url = entry.get("link", "")
-                if not entry_url:
+            # Process results
+            for result in results:
+                if isinstance(result, Exception):
                     continue
                     
-                existing = await db.execute(
-                    select(NewsArticle).where(NewsArticle.url == entry_url)
-                )
-                if existing.scalar_one_or_none():
+                feed, parsed = result
+                is_reddit = "reddit.com" in feed.url
+                
+                if not parsed or not parsed.entries:
+                    if is_reddit:
+                        stats["reddit_failed"] += 1
                     continue
                 
-                # Parse published date
-                published = None
-                if hasattr(entry, "published_parsed") and entry.published_parsed:
-                    try:
-                        published = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-                    except:
-                        pass
+                stats["feeds_processed"] += 1
+                if is_reddit:
+                    stats["reddit_success"] += 1
                 
-                # Get title - Reddit sometimes has it in different places
-                title = entry.get("title", "")
-                if not title and hasattr(entry, "title"):
-                    title = entry.title
+                # Get entries (more from Reddit)
+                max_entries = 25 if is_reddit else 15
                 
-                # Get summary/content
-                summary = entry.get("summary", "")
-                if not summary and hasattr(entry, "content"):
-                    try:
-                        summary = entry.content[0].value if entry.content else ""
-                    except:
-                        pass
+                for entry in parsed.entries[:max_entries]:
+                    entry_url = entry.get("link", "")
+                    if not entry_url or entry_url in existing_urls:
+                        continue
+                    
+                    # Mark as seen to avoid duplicates within this fetch
+                    existing_urls.add(entry_url)
+                    
+                    # Parse published date
+                    published = None
+                    if hasattr(entry, "published_parsed") and entry.published_parsed:
+                        try:
+                            published = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+                        except:
+                            pass
+                    
+                    # Get title
+                    title = entry.get("title", "") or getattr(entry, "title", "") or "Untitled"
+                    
+                    # Get summary
+                    summary = entry.get("summary", "")
+                    if not summary and hasattr(entry, "content"):
+                        try:
+                            summary = entry.content[0].value if entry.content else ""
+                        except:
+                            pass
+                    
+                    all_articles_to_add.append(NewsArticle(
+                        feed_id=feed.id,
+                        title=title[:500],
+                        summary=summary[:2000] if summary else None,
+                        url=entry_url,
+                        published_at=published
+                    ))
                 
-                article = NewsArticle(
-                    feed_id=feed.id,
-                    title=title[:500] if title else "Untitled",
-                    summary=summary[:2000] if summary else None,
-                    url=entry_url,
-                    published_at=published
-                )
-                db.add(article)
-                stats["articles_added"] += 1
-            
-            # Update last fetched time
-            feed.last_fetched = datetime.now(timezone.utc)
-        
-        # Small delay between batches to be nice to servers
-        if i + batch_size < len(feeds):
-            await asyncio.sleep(0.5)
+                # Update last fetched time
+                feed.last_fetched = datetime.now(timezone.utc)
+    
+    # Bulk add all articles at once
+    if all_articles_to_add:
+        db.add_all(all_articles_to_add)
+        stats["articles_added"] = len(all_articles_to_add)
     
     await db.commit()
     return stats
